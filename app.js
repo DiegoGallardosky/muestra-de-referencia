@@ -77,6 +77,30 @@
     return URL.createObjectURL(file);
   }
 
+  function pastedImageFile(e, baseName){
+    const items=[...(e.clipboardData?.items||[])];
+    const item=items.find(x=>x.kind==="file" && x.type && (x.type.startsWith("image/") || x.type==="image/svg+xml"));
+    if(!item) return null;
+    const blob=item.getAsFile(); if(!blob)return null;
+    const ext=blob.type==="image/svg+xml"?"svg":blob.type==="image/jpeg"?"jpg":blob.type==="image/webp"?"webp":"png";
+    return new File([blob], baseName+"."+ext, {type:blob.type||"image/png", lastModified:Date.now()});
+  }
+
+  function bindPasteZone(el, baseName, onFile){
+    if(!el)return;
+    el.dataset.pasteName=baseName;
+    if(el.dataset.pasteBound==="1")return;
+    el.dataset.pasteBound="1";
+    el.addEventListener("click",()=>el.focus());
+    el.addEventListener("paste",async e=>{
+      const file=pastedImageFile(e, el.dataset.pasteName||"imagen-pegada");
+      if(!file){toast("El portapapeles no contiene una imagen");return;}
+      e.preventDefault();
+      el.classList.add("paste-saving");
+      try{await onFile(file);}finally{el.classList.remove("paste-saving");}
+    });
+  }
+
   function setView(id){
     document.querySelectorAll(".view").forEach(v=>v.classList.toggle("active",v.id===id));
     document.querySelectorAll("[data-nav]").forEach(b=>b.classList.toggle("active",b.dataset.nav===id && b.classList.contains("nav-btn")));
@@ -177,7 +201,7 @@
     for(const d of ds){
       const du=await mediaUrl("design:"+d.id);
       designCards.push(`<article class="linked-design-card">
-        <div class="linked-design-media">${du?'<img src="'+du+'" alt="Dibujo '+esc(d.id)+'">':'<span class="linked-design-empty">Dibujo no adjuntado</span>'}</div>
+        <div class="linked-design-media paste-target" tabindex="0" role="button" data-modal-paste-design="${esc(d.id)}">${du?'<img src="'+du+'" alt="Dibujo '+esc(d.id)+'">':'<span class="linked-design-empty">Dibujo no adjuntado · clic y Ctrl+V</span>'}</div>
         <div class="linked-design-info">
           <div><strong>${esc(d.id)}</strong><span>${esc(d.esquema||"esquema pendiente")} · ${esc(d.clase_simetria||"simetría pendiente")}</span></div>
           <div class="linked-design-actions">
@@ -189,6 +213,17 @@
     }
 
     $("dialogContent").innerHTML=`<div class="detail-grid"><div><div class="detail-media">${u?'<img src="'+u+'">':'<span class="placeholder">'+esc(id)+'</span>'}</div>${p.fotogrametria_url?'<iframe class="embed-frame" src="'+esc(p.fotogrametria_url)+'" allowfullscreen loading="lazy"></iframe>':''}</div><div class="detail-data"><span class="card-id">${esc(id)}</span><h2>${esc(p.forma||"Pieza sin clasificar")}</h2><dl class="detail-list"><dt>Sigla</dt><dd>${esc(p.sigla||"—")}</dd><dt>Sitio</dt><dd>${esc(p.sitio||"—")}</dd><dt>Colección</dt><dd>${esc(p.coleccion||"—")}</dd><dt>Integridad</dt><dd>${esc(p.integridad||"—")}</dd><dt>Publicación</dt><dd>${esc(p.publicacion||"—")}</dd><dt>Página</dt><dd>${esc(p.pagina||"—")}</dd><dt>Observaciones</dt><dd>${esc(p.observaciones||"—")}</dd></dl><div class="design-list-detail"><h3>Diseños vinculados</h3><p class="design-list-help">Cada diseño puede adjuntar o reemplazar su dibujo directamente desde esta ficha.</p>${ds.length?designCards.join(""):'<p>Sin diseños vinculados.</p>'}</div></div></div>`;
+
+    $("dialogContent").querySelectorAll("[data-modal-paste-design]").forEach(zone=>{
+      const designId=zone.dataset.modalPasteDesign;
+      bindPasteZone(zone,designId+"-diseno",async file=>{
+        await putFile("design:"+designId,file);
+        const d=data.designs.find(x=>x.id===designId);
+        if(d){d.design_file_name=file.name;d.updated_at=nowIso();}
+        saveData();toast("Dibujo pegado en "+designId);
+        await openPieceDetail(id);
+      });
+    });
 
     $("dialogContent").querySelectorAll("[data-design-upload]").forEach(input=>{
       input.addEventListener("change",async e=>{
@@ -252,6 +287,12 @@
     const p=data.pieces.find(x=>x.id===id); if(!p)return; selectedPieceId=id;
     $("pieceFormTitle").textContent=p.id;$("p_id").value=p.id;$("p_caja").value=p.caja||"";$("p_sigla").value=p.sigla||"";$("p_sitio").value=p.sitio||"";$("p_coleccion").value=p.coleccion||"";$("p_publicacion").value=p.publicacion||"";$("p_pagina").value=p.pagina||"";$("p_forma").value=p.forma||"";$("p_forma_otro").value=p.forma_otro||"";$("p_integridad").value=p.integridad||"";$("p_fotogrametria").value=p.fotogrametria_url||"";$("p_observaciones").value=p.observaciones||"";
     setOtherVisibility();previewFile("piece:"+id,"piecePhotoPreview");renderPieceList();renderPieceLinkedDesignsEditor(id);
+    bindPasteZone($("piecePhotoPreview"),id+"-foto",async file=>{
+      await putFile("piece:"+id,file);
+      p.photo_file_name=file.name;p.updated_at=nowIso();saveData();
+      await previewFile("piece:"+id,"piecePhotoPreview");
+      toast("Fotografía pegada en "+id);
+    });
   }
   async function renderPieceLinkedDesignsEditor(pieceId){
     const box=$("pieceLinkedDesignsEditor"); if(!box)return;
@@ -264,7 +305,7 @@
       const row=document.createElement("article");
       row.className="piece-linked-design-row";
       row.innerHTML=`
-        <div class="piece-linked-design-thumb">${url?'<img src="'+url+'" alt="Dibujo '+esc(d.id)+'">':'<span>Sin dibujo</span>'}</div>
+        <div class="piece-linked-design-thumb paste-target" tabindex="0" role="button" data-paste-design="${esc(d.id)}">${url?'<img src="'+url+'" alt="Dibujo '+esc(d.id)+'">':'<span>Sin dibujo · clic y Ctrl+V</span>'}</div>
         <div class="piece-linked-design-meta">
           <strong>${esc(d.id)}</strong>
           <small>${esc(d.esquema||"esquema pendiente")} · ${esc(d.clase_simetria||"simetría pendiente")}</small>
@@ -277,6 +318,16 @@
       box.appendChild(row);
       if(url){const img=row.querySelector("img");img.onload=()=>URL.revokeObjectURL(url);}
     }
+    box.querySelectorAll("[data-paste-design]").forEach(zone=>{
+      const designId=zone.dataset.pasteDesign;
+      bindPasteZone(zone,designId+"-diseno",async file=>{
+        await putFile("design:"+designId,file);
+        const d=data.designs.find(x=>x.id===designId);
+        if(d){d.design_file_name=file.name;d.updated_at=nowIso();}
+        saveData();toast("Dibujo pegado en "+designId);
+        await renderPieceLinkedDesignsEditor(pieceId);
+      });
+    });
     box.querySelectorAll("[data-editor-design-upload]").forEach(input=>{
       input.addEventListener("change",async e=>{
         const file=e.target.files?.[0];if(!file)return;
@@ -331,6 +382,12 @@
   function loadDesignForm(id){
     const d=data.designs.find(x=>x.id===id);if(!d)return;selectedDesignId=id;
     refreshPieceSelect();$("designFormTitle").textContent=d.id;$("d_id").value=d.id;$("d_ref").value=d.ref_original||"";$("d_piece").value=d.piece_id||"";refreshCampoOptions(d.piece_id,d.campo_decorativo);$("d_campo_otro").value=d.campo_otro||"";$("d_simetria").value=d.clase_simetria||"";$("d_esquema").value=d.esquema||"";$("d_colores").value=d.colores||"";$("d_observaciones").value=d.observaciones||"";$("d_tecnica_otro").value=d.tecnica_otro||"";renderTechniqueChecks(d.tecnicas||[]);setOtherVisibility();previewFile("design:"+id,"designImagePreview");renderDesignList();
+    bindPasteZone($("designImagePreview"),id+"-diseno",async file=>{
+      await putFile("design:"+id,file);
+      d.design_file_name=file.name;d.updated_at=nowIso();saveData();
+      await previewFile("design:"+id,"designImagePreview");
+      toast("Dibujo pegado en "+id);
+    });
   }
   $("d_piece").onchange=()=>refreshCampoOptions($("d_piece").value,"");
   $("designForm").onsubmit=async e=>{
