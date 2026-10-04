@@ -1033,6 +1033,8 @@
         }else if(cmd.type==="set_piece_group"){
           const p=data.pieces.find(x=>x.id===cmd.piece || x.uid===cmd.piece || (x.id_history||[]).includes(cmd.piece) || x.legacy_id===cmd.piece);
           if(p && cmd.group){p.sample_group=cmd.group;saveData();}
+        }else if(cmd.type==="reindex_ids"){
+          await repairIdSequences();
         }
         data.meta.applied_commands=data.meta.applied_commands||[];
         if(!data.meta.applied_commands.includes(cmd.id))data.meta.applied_commands.push(cmd.id);
@@ -1115,7 +1117,11 @@
 
     const drawingOrder=[...data.designs].sort((a,b)=>{
       const fa=fieldOrder.findIndex(f=>f.id===a.field_id), fb=fieldOrder.findIndex(f=>f.id===b.field_id);
-      if(fa!==fb)return fa-fb;
+      const aLinked=fa>=0, bLinked=fb>=0;
+      // Los dibujos realmente vinculados a campos de la muestra ocupan primero
+      // la secuencia MR-D. Los registros históricos/no vinculados quedan después.
+      if(aLinked!==bLinked)return aLinked?-1:1;
+      if(aLinked && fa!==fb)return fa-fb;
       return (a.created_order||numericId(a.id,"MR-D"))-(b.created_order||numericId(b.id,"MR-D"));
     });
     const drawingMap=new Map();
