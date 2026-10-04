@@ -113,3 +113,8 @@ dialog{
 .field-preset-chip span{display:flex;gap:7px;align-items:center}
 .field-preset-chip b{color:var(--lime);font-size:11px;letter-spacing:.05em}
 .field-preset-chip:has(input:checked){border-color:rgba(194,215,137,.48);background:rgba(194,215,137,.08)}
+
+.field-row-head>div:first-child{display:flex;flex-direction:column;gap:4px}
+.field-linked-ids{color:var(--muted);font-size:11px;letter-spacing:.03em}
+.field-row-head-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+@media(max-width:700px){.field-row-head{align-items:flex-start;flex-direction:column}.field-row-head-actions{width:100%;justify-content:space-between}}
