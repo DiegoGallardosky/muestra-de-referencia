@@ -148,3 +148,6 @@ dialog{
 .audit-summary details{border-top:1px solid var(--line);padding-top:8px}
 .audit-summary summary{cursor:pointer;color:var(--lime);font-weight:800}
 .audit-summary ul{margin:8px 0 0;padding-left:20px;color:var(--muted);font-size:12px;line-height:1.45}
+
+.inline-order-control{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center}
+.inline-order-control .mini{height:100%}
