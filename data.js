@@ -71,8 +71,8 @@ window.MR_SEED = (() => {
   });
 
   return {
-    version:"0.2.0",
-    schema_version:2,
+    version:"0.3.0",
+    schema_version:3,
     pieces,
     fields:[],
     designs,
@@ -81,8 +81,8 @@ window.MR_SEED = (() => {
       integridad:["Completa","Semicompleta","Otro"],
       camposPorForma:{
         "Escudilla":["Borde externo","Cuerpo externo","Borde interno","Base","Asa","Otro"],
-        "Cuenco-Puco":["Asa externo","Cuerpo externo","Borde externo","Borde interno","Base","Otro"],
-        "Vaso":["Cuerpo externo","Borde externo","Otro"],
+        "Cuenco-Puco":["Asa externo","Cuerpo externo","Otro"],
+        "Vaso":["Cuerpo externo","Otro"],
         "Vaso anular":["Cuerpo externo","Sector superior","Otro"],
         "Botella":["Cuerpo superior","Asa","Cuerpo","Cuello","Otro"],
         "Cántaro ovoide":["Asa","Cuerpo superior","Cuerpo","Cuello","Otro"],
@@ -91,7 +91,56 @@ window.MR_SEED = (() => {
         "Pipa":["Parte frontal superior - Hornillo","Parte media-baja - Casoleta","Rama horizontal","Otro"],
         "Otro":["Otro"]
       },
-      camposGenerales:["Borde externo","Cuerpo externo","Borde interno","Base","Asa","Cuerpo superior","Cuello","Cuello inferior","Sector superior","Parte frontal superior - Hornillo","Parte media-baja - Casoleta","Rama horizontal","Otro"],
+      campoCatalogoPorForma:{
+        "Escudilla":[
+          {codigo:"CD1",nombre:"Borde externo"},
+          {codigo:"CD2",nombre:"Cuerpo externo"},
+          {codigo:"CD3",nombre:"Borde interno"},
+          {codigo:"CD4",nombre:"Base"},
+          {codigo:"CD5",nombre:"Asa"}
+        ],
+        "Cuenco-Puco":[
+          {codigo:"CD6",nombre:"Asa externo"},
+          {codigo:"CD7",nombre:"Cuerpo externo"}
+        ],
+        "Vaso":[
+          {codigo:"CD8",nombre:"Cuerpo externo"}
+        ],
+        "Vaso anular":[
+          {codigo:"CD9",nombre:"Cuerpo externo"},
+          {codigo:"CD10",nombre:"Sector superior"}
+        ],
+        "Botella":[
+          {codigo:"CD11",nombre:"Cuerpo superior"},
+          {codigo:"CD12",nombre:"Asa"},
+          {codigo:"CD13",nombre:"Cuerpo"},
+          {codigo:"CD14",nombre:"Cuello"}
+        ],
+        "Cántaro ovoide":[
+          {codigo:"CD15",nombre:"Asa"},
+          {codigo:"CD16",nombre:"Cuerpo superior"},
+          {codigo:"CD17",nombre:"Cuerpo"},
+          {codigo:"CD18",nombre:"Cuello"}
+        ],
+        "Urna":[
+          {codigo:"CD19",nombre:"Cuello"},
+          {codigo:"CD20",nombre:"Cuello inferior"},
+          {codigo:"CD21",nombre:"Cuerpo"}
+        ],
+        "Olla":[
+          {codigo:"CD22",nombre:"Asa"},
+          {codigo:"CD23",nombre:"Cuerpo superior"},
+          {codigo:"CD24",nombre:"Cuerpo"},
+          {codigo:"CD25",nombre:"Cuello"}
+        ],
+        "Pipa":[
+          {codigo:"CD26",nombre:"Parte frontal superior - Hornillo"},
+          {codigo:"CD27",nombre:"Parte media-baja - Casoleta"},
+          {codigo:"CD28",nombre:"Rama horizontal"}
+        ],
+        "Otro":[]
+      },
+      camposGenerales:["Borde externo","Cuerpo externo","Borde interno","Base","Asa","Asa externo","Cuerpo superior","Cuerpo","Cuello","Cuello inferior","Sector superior","Parte frontal superior - Hornillo","Parte media-baja - Casoleta","Rama horizontal","Otro"],
       tecnicas:["Incisión","Pintura o engobe monocromo","Pintura bicolor","Modelada","Impresa","Acanalada","Corrugada","Agregado al pastillaje","Pintura tricolor","Peinado inciso","Otro"],
       simetrias:["d1","d2","d3","d4","d5","d6","c1","c2","c3","c4","c5","c6","pmm2","pma2","pm11","p1m1","p1a1","p112","p111","cm","pm","pg","p1","pmm","cmm","pmg","pgg","p2","p4m","p4g","p4","p3m1","p31m","p3","p6m","p6","Otro"]
     }
