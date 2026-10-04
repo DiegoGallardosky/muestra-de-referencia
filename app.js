@@ -97,7 +97,11 @@
 
   function bindPasteZone(el, baseName, onFile){
     if(!el)return;
+    // La misma zona de vista previa se reutiliza al cambiar de pieza/diseño.
+    // Actualizamos siempre el destino y el callback para evitar que una imagen
+    // se guarde accidentalmente en el registro seleccionado anteriormente.
     el.dataset.pasteName=baseName;
+    el._mrPasteHandler=onFile;
     if(el.dataset.pasteBound==="1")return;
     el.dataset.pasteBound="1";
     el.addEventListener("click",()=>el.focus());
@@ -106,7 +110,16 @@
       if(!file){toast("El portapapeles no contiene una imagen");return;}
       e.preventDefault();
       el.classList.add("paste-saving");
-      try{await onFile(file);}finally{el.classList.remove("paste-saving");}
+      try{
+        if(typeof el._mrPasteHandler==="function"){
+          await el._mrPasteHandler(file);
+        }
+      }catch(err){
+        console.error("Error al guardar imagen pegada",err);
+        toast("No se pudo guardar la imagen. Volvé a intentar.");
+      }finally{
+        el.classList.remove("paste-saving");
+      }
     });
   }
 
