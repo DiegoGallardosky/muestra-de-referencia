@@ -84,3 +84,22 @@ dialog{
   .linked-design-media{min-height:260px}
   .linked-design-media img{height:260px}
 }
+
+/* Campos decorativos múltiples por pieza */
+.field-manager{border:1px solid var(--line);border-radius:12px;padding:15px;background:rgba(255,255,255,.015)}
+.field-manager-head{display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:12px}
+.field-manager-head strong,.field-manager-head small{display:block}
+.field-manager-head small{color:var(--muted);margin-top:4px;line-height:1.4}
+.piece-fields-editor{display:grid;gap:10px}
+.field-row{padding:12px;border:1px solid var(--line);border-radius:10px;background:#0f1b16}
+.field-row-head{display:flex;justify-content:space-between;gap:12px;margin-bottom:10px}
+.field-row-head strong{color:var(--lime)}
+.field-row-head span{color:var(--muted);font-size:12px}
+.field-row-grid{display:grid;grid-template-columns:1fr 1fr 1.2fr auto;gap:10px;align-items:end}
+.field-row-grid label{display:flex;flex-direction:column;gap:6px}
+.field-notes{min-width:180px}
+.field-delete{padding:10px 4px;white-space:nowrap}
+@media(max-width:900px){
+  .field-manager-head{align-items:flex-start;flex-direction:column}
+  .field-row-grid{grid-template-columns:1fr}
+}
