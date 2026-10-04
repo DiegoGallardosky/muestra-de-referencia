@@ -94,6 +94,23 @@
         }
       }
     });
+    // Normalización segura de relaciones. No elimina registros ni archivos.
+    d.fields.forEach(f=>{
+      const linked=d.designs.filter(des=>des.field_id===f.id);
+      if(linked.length===1){
+        f.design_id=linked[0].id;
+        if(linked[0].piece_id!==f.piece_id) linked[0].piece_id=f.piece_id;
+      }else if(linked.length===0 && f.design_id && !d.designs.some(des=>des.id===f.design_id)){
+        f.design_id="";
+      }
+    });
+    d.designs.forEach(des=>{
+      if(des.field_id){
+        const f=d.fields.find(x=>x.id===des.field_id);
+        if(f && des.piece_id!==f.piece_id) des.piece_id=f.piece_id;
+      }
+    });
+
     d.schema_version=5;
     return d;
   }
@@ -237,8 +254,8 @@
 
   function refreshStats(){
     $("statPieces").textContent=data.pieces.length;
+    if($("statFields")) $("statFields").textContent=data.fields.length;
     $("statDesigns").textContent=data.designs.length;
-    $("statLinked").textContent=data.designs.filter(d=>d.piece_id).length;
   }
   refreshStats();
 
@@ -464,7 +481,7 @@
       if(input.checked){
         if(!existingField){
           const id=nextId("MR-C",data.fields);
-          data.fields.push({id,piece_id:pieceId,catalog_code:item.codigo,nombre:item.nombre,nombre_otro:"",observaciones:"",updated_at:nowIso()});
+          data.fields.push({id,piece_id:pieceId,catalog_code:item.codigo,nombre:item.nombre,nombre_otro:"",observaciones:"",tecnicas:[],tecnica_otro:"",esquemas:[],clase_simetria:"",colores:"",design_id:"",updated_at:nowIso()});
           saveData();toast(item.codigo+" agregado");
         }else if(!existingField.catalog_code){
           existingField.catalog_code=item.codigo;existingField.updated_at=nowIso();saveData();
@@ -516,7 +533,7 @@
       const catalog=fieldCatalogForPiece(pieceId).find(c=>c.nombre===f.nombre);
       f.catalog_code=catalog?.codigo||"";
       f.updated_at=nowIso();
-      data.designs.filter(d=>d.field_id===f.id).forEach(d=>{d.campo_decorativo=f.nombre;d.campo_otro=f.nombre_otro||"";});
+      data.designs.filter(d=>d.field_id===f.id).forEach(d=>{d.campo_decorativo=f.nombre;d.campo_otro=f.nombre_otro||"";d.piece_id=f.piece_id;});
       saveData();renderPieceFieldsEditor(pieceId);
     }));
     box.querySelectorAll("[data-field-other]").forEach(el=>el.addEventListener("change",()=>{
@@ -568,7 +585,7 @@
   $("addFieldBtn").onclick=()=>{
     const pieceId=selectedPieceId;if(!pieceId)return;
     const id=nextId("MR-C",data.fields);
-    data.fields.push({id,piece_id:pieceId,catalog_code:"",nombre:"Otro",nombre_otro:"",observaciones:"",updated_at:nowIso()});
+    data.fields.push({id,piece_id:pieceId,catalog_code:"",nombre:"Otro",nombre_otro:"",observaciones:"",tecnicas:[],tecnica_otro:"",esquemas:[],clase_simetria:"",colores:"",design_id:"",updated_at:nowIso()});
     saveData();renderPieceFieldsEditor(pieceId);toast("Nuevo campo creado: "+id);
   };
 
@@ -586,7 +603,7 @@
         <div class="piece-linked-design-thumb paste-target" tabindex="0" role="button" data-paste-design="${esc(d.id)}">${url?'<img src="'+url+'" alt="Dibujo '+esc(d.id)+'">':'<span>Sin dibujo · clic y Ctrl+V</span>'}</div>
         <div class="piece-linked-design-meta">
           <strong>${esc(d.id)}</strong>
-          <small>${esc(d.esquema||"esquema pendiente")} · ${esc(d.clase_simetria||"simetría pendiente")}</small>
+          <small>${(()=>{const f=data.fields.find(x=>x.id===d.field_id);const es=(f?.esquemas&&f.esquemas.length)?f.esquemas.join(" | "):(d.esquema||"esquema pendiente");const si=f?.clase_simetria||d.clase_simetria||"simetría pendiente";return esc(es+" · "+si);})()}</small>
           <div class="piece-linked-design-actions">
             <label class="design-upload-btn">${file?"Reemplazar dibujo":"Adjuntar dibujo"}<input type="file" accept="image/*,.svg" data-editor-design-upload="${esc(d.id)}"></label>
             <button type="button" class="mini" data-edit-design="${esc(d.id)}">Editar datos del diseño</button>
@@ -715,7 +732,10 @@
   $("exportPieces").onclick=()=>download("muestra_referencia_piezas.csv",toCsv(data.pieces,[
     {key:"id",label:"ID_PIEZA"},{key:"caja",label:"CAJA"},{key:"sigla",label:"SIGLA"},{key:"sitio",label:"SITIO"},{key:"coleccion",label:"COLECCION"},{key:"publicacion",label:"PUBLICACION"},{key:"pagina",label:"PAGINA_LAMINA"},{key:"forma",label:"FORMA"},{key:"forma_otro",label:"FORMA_OTRO"},{key:"integridad",label:"INTEGRIDAD"},{key:"fotogrametria_url",label:"FOTOGRAMETRIA_URL"},{key:"photo_file_name",label:"FOTO_ARCHIVO"},{key:"observaciones",label:"OBSERVACIONES"}
   ]));
-  $("exportDesigns").onclick=()=>download("muestra_referencia_disenos.csv",toCsv(data.designs,[
+  $("exportFields").onclick=()=>download("muestra_referencia_campos.csv",toCsv(data.fields,[
+    {key:"id",label:"ID_CAMPO"},{key:"piece_id",label:"ID_PIEZA"},{key:"catalog_code",label:"CODIGO_SECTOR"},{key:"nombre",label:"SECTOR_CAMPO"},{key:"nombre_otro",label:"CAMPO_OTRO"},{key:"design_id",label:"ID_DISENO"},{get:r=>(r.tecnicas||[]).join("|"),label:"TECNICAS"},{key:"tecnica_otro",label:"TECNICA_OTRO"},{get:r=>(r.esquemas||[]).join("|"),label:"ESQUEMAS"},{key:"clase_simetria",label:"CLASE_SIMETRIA"},{key:"colores",label:"COLORES"},{key:"observaciones",label:"OBSERVACIONES"}
+  ]));
+  $("exportDesigns").onclick=()=>download("muestra_referencia_dibujos.csv",toCsv(data.designs,[
     {key:"id",label:"ID_DISENO"},{key:"ref_original",label:"REF_ORIGINAL"},{key:"piece_id",label:"ID_PIEZA"},{key:"field_id",label:"ID_CAMPO"},{key:"campo_decorativo",label:"CAMPO_DECORATIVO"},{key:"campo_otro",label:"CAMPO_OTRO"},{get:r=>(r.tecnicas||[]).join("|"),label:"TECNICAS"},{key:"tecnica_otro",label:"TECNICA_OTRO"},{key:"esquema",label:"ESQUEMA"},{key:"clase_simetria",label:"CLASE_SIMETRIA"},{key:"colores",label:"COLORES"},{key:"design_file_name",label:"DISENO_ARCHIVO"},{key:"observaciones",label:"OBSERVACIONES"}
   ]));
   $("exportSpss").onclick=()=>{
@@ -761,7 +781,61 @@
   $("exportJson").onclick=()=>download("muestra_referencia_respaldo.json",JSON.stringify(data,null,2),"application/json;charset=utf-8");
   $("importJson").onchange=async e=>{
     const f=e.target.files[0];if(!f)return;
-    try{const obj=JSON.parse(await f.text());if(!obj.pieces||!obj.designs)throw new Error("Formato inválido");data=obj;saveData();refreshPieceSelect();renderPieceList();renderDesignList();renderCatalog();toast("Respaldo importado");}catch(err){alert("No se pudo importar el archivo: "+err.message);}e.target.value="";
+    try{const obj=JSON.parse(await f.text());if(!obj.pieces||!obj.designs)throw new Error("Formato inválido");data=migrateData(obj);saveData();refreshPieceSelect();renderPieceList();renderDesignList();renderCatalog();toast("Respaldo importado y actualizado");}catch(err){alert("No se pudo importar el archivo: "+err.message);}e.target.value="";
+  };
+
+  function auditDatabase(){
+    const issues=[];
+    const warnings=[];
+    const pieceIds=new Set();
+    const fieldIds=new Set();
+    const designIds=new Set();
+
+    data.pieces.forEach(p=>{
+      if(pieceIds.has(p.id)) issues.push("ID de pieza duplicado: "+p.id);
+      pieceIds.add(p.id);
+      if(!p.id?.match(/^MR-P\d{4,}$/)) warnings.push("ID de pieza fuera del patrón: "+(p.id||"(vacío)"));
+    });
+
+    data.fields.forEach(f=>{
+      if(fieldIds.has(f.id)) issues.push("ID de campo duplicado: "+f.id);
+      fieldIds.add(f.id);
+      const p=data.pieces.find(x=>x.id===f.piece_id);
+      if(!p) issues.push(f.id+" apunta a una pieza inexistente: "+(f.piece_id||"(vacío)"));
+      if(!f.catalog_code && f.nombre!=="Otro") warnings.push(f.id+" no tiene código de sector CD");
+      if(p && f.catalog_code){
+        const allowed=data.options.campoCatalogoPorForma?.[p.forma]||[];
+        const match=allowed.find(x=>x.codigo===f.catalog_code);
+        if(!match) issues.push(f.id+" usa "+f.catalog_code+" incompatible con la forma "+(p.forma||"(sin forma)"));
+        else if(match.nombre!==f.nombre) warnings.push(f.id+" tiene código "+f.catalog_code+" pero sector '"+f.nombre+"'");
+      }
+      const linked=data.designs.filter(d=>d.field_id===f.id);
+      if(linked.length>1) issues.push(f.id+" tiene más de un dibujo vinculado: "+linked.map(d=>d.id).join(", "));
+      if(linked.length===0) warnings.push(f.id+" todavía no tiene dibujo MR-D");
+      if(!f.clase_simetria) warnings.push(f.id+" sin clase de simetría");
+      if(!(f.esquemas||[]).length) warnings.push(f.id+" sin esquema registrado");
+      if(!(f.tecnicas||[]).length) warnings.push(f.id+" sin técnica registrada");
+    });
+
+    data.designs.forEach(d=>{
+      if(designIds.has(d.id)) issues.push("ID de dibujo duplicado: "+d.id);
+      designIds.add(d.id);
+      const f=data.fields.find(x=>x.id===d.field_id);
+      if(d.field_id && !f) issues.push(d.id+" apunta a un campo inexistente: "+d.field_id);
+      if(f && d.piece_id!==f.piece_id) issues.push(d.id+" y "+f.id+" no apuntan a la misma pieza");
+      if(!d.field_id && (d.design_file_name||d.esquema||d.clase_simetria||(d.tecnicas||[]).length)) warnings.push(d.id+" tiene información pero no está vinculado a un campo");
+    });
+
+    return {issues,warnings};
+  }
+
+  $("runAudit").onclick=()=>{
+    const r=auditDatabase();
+    const box=$("auditSummary");
+    box.innerHTML='<strong>'+r.issues.length+' problema(s) crítico(s)</strong><span>'+r.warnings.length+' advertencia(s)</span>'+
+      (r.issues.length?'<details><summary>Ver problemas</summary><ul>'+r.issues.slice(0,50).map(x=>'<li>'+esc(x)+'</li>').join("")+'</ul></details>':'')+
+      (r.warnings.length?'<details><summary>Ver advertencias</summary><ul>'+r.warnings.slice(0,50).map(x=>'<li>'+esc(x)+'</li>').join("")+'</ul></details>':'')+
+      (!r.issues.length?'<em>Las relaciones estructurales principales son coherentes.</em>':'');
   };
 
   // Procedural jungle ambience, user initiated
