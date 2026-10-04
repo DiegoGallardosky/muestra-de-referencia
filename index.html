@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#10251d">
+  <title>Muestra de referencia · Tradición San Francisco</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#inicio" data-nav="inicio">
+      <span class="brand-mark">SF</span>
+      <span><strong>Muestra de referencia</strong><small>Tradición San Francisco</small></span>
+    </a>
+    <nav>
+      <button class="nav-btn active" data-nav="inicio">Inicio</button>
+      <button class="nav-btn" data-nav="muestra">Ver muestra</button>
+      <button class="nav-btn" data-nav="editar">Editar</button>
+      <button class="nav-btn" data-nav="exportar">SPSS / Exportar</button>
+    </nav>
+    <button id="jungleToggle" class="sound-btn" aria-pressed="false" title="Activar ambiente sonoro de selva">◉ Selva</button>
+  </header>
+
+  <main>
+    <section id="inicio" class="view active">
+      <div class="hero">
+        <div class="hero-copy">
+          <span class="eyebrow">BASE ANALÍTICA · ARQUEOLOGÍA</span>
+          <h1>Muestra de referencia</h1>
+          <p>Registro integrado de piezas cerámicas completas y semicompletas, campos decorativos y diseños de referencia vinculados al estudio de los lenguajes visuales de la Tradición San Francisco.</p>
+          <div class="hero-actions">
+            <button class="primary" data-nav="muestra">Acceder a la muestra</button>
+            <button class="secondary" data-nav="editar">Cargar / editar datos</button>
+          </div>
+          <div class="stats">
+            <div><strong id="statPieces">30</strong><span>Piezas</span></div>
+            <div><strong id="statDesigns">74</strong><span>Diseños</span></div>
+            <div><strong id="statLinked">—</strong><span>Diseños vinculados</span></div>
+          </div>
+        </div>
+        <div class="hero-symbol" aria-label="Símbolo provisional San Francisco">
+          <div class="symbol-frame">
+            <div class="symbol-step"></div>
+            <span>SF</span>
+            <small>símbolo provisional</small>
+          </div>
+        </div>
+      </div>
+      <div class="intro-grid">
+        <article><span>01</span><h3>Pieza</h3><p>Cada pieza completa o semicompleta posee un ID único MR-Pxxxx independiente de la sigla institucional.</p></article>
+        <article><span>02</span><h3>Diseño</h3><p>Cada dibujo o diseño de Inkscape posee un ID único MR-Dxxxx y puede vincularse con una pieza.</p></article>
+        <article><span>03</span><h3>Análisis</h3><p>La estructura de datos se prepara para exportación limpia y análisis posteriores en SPSS.</p></article>
+      </div>
+    </section>
+
+    <section id="muestra" class="view">
+      <div class="section-head">
+        <div><span class="eyebrow">CATÁLOGO</span><h2>Ver muestra</h2></div>
+        <div class="segmented">
+          <button id="showPiecesBtn" class="active">Piezas</button>
+          <button id="showDesignsBtn">Diseños</button>
+        </div>
+      </div>
+      <div class="filters">
+        <input id="searchInput" type="search" placeholder="Buscar por ID, sitio, colección, sigla, esquema…">
+        <select id="filterForm"><option value="">Todas las formas</option></select>
+        <select id="filterSite"><option value="">Todos los sitios</option></select>
+      </div>
+      <div id="catalogGrid" class="catalog-grid"></div>
+    </section>
+
+    <section id="editar" class="view">
+      <div class="section-head">
+        <div><span class="eyebrow">GESTIÓN</span><h2>Editar muestra</h2><p>Los ID principales están bloqueados para evitar duplicaciones.</p></div>
+        <div class="segmented">
+          <button id="editPieceTab" class="active">Piezas</button>
+          <button id="editDesignTab">Diseños</button>
+        </div>
+      </div>
+
+      <div id="pieceEditor" class="editor-layout">
+        <aside class="record-list-panel">
+          <div class="panel-actions"><input id="pieceSearch" type="search" placeholder="Buscar pieza"><button id="newPieceBtn" class="mini">+ Nueva</button></div>
+          <div id="pieceList" class="record-list"></div>
+        </aside>
+        <form id="pieceForm" class="editor-card">
+          <div class="form-title"><div><span class="record-type">PIEZA</span><h3 id="pieceFormTitle">MR-P0001</h3></div><button type="submit" class="primary">Guardar cambios</button></div>
+          <div class="form-grid">
+            <label>ID de pieza<input id="p_id" readonly></label>
+            <label>Caja<input id="p_caja"></label>
+            <label>Sigla<input id="p_sigla" placeholder="Puede quedar vacía"></label>
+            <label>Sitio<input id="p_sitio"></label>
+            <label>Colección<input id="p_coleccion"></label>
+            <label>Publicación<input id="p_publicacion"></label>
+            <label>Página / lámina<input id="p_pagina"></label>
+            <label>Forma<select id="p_forma"></select></label>
+            <label id="p_forma_otro_wrap" class="hidden">Otra forma<input id="p_forma_otro"></label>
+            <label>Integridad<select id="p_integridad"></select></label>
+            <label class="span-2">Fotogrametría — URL<input id="p_fotogrametria" type="url" placeholder="https://…"></label>
+            <label class="span-2">Observaciones<textarea id="p_observaciones" rows="4"></textarea></label>
+            <div class="span-2 media-field">
+              <div><strong>Fotografía de la pieza</strong><small>JPG, PNG o WebP. Puede reemplazarse.</small></div>
+              <input id="p_photo" type="file" accept="image/*">
+              <button id="removePiecePhoto" type="button" class="danger-link">Quitar fotografía</button>
+              <div id="piecePhotoPreview" class="media-preview"></div>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <div id="designEditor" class="editor-layout hidden">
+        <aside class="record-list-panel">
+          <div class="panel-actions"><input id="designSearch" type="search" placeholder="Buscar diseño"><button id="newDesignBtn" class="mini">+ Nuevo</button></div>
+          <div id="designList" class="record-list"></div>
+        </aside>
+        <form id="designForm" class="editor-card">
+          <div class="form-title"><div><span class="record-type">DISEÑO</span><h3 id="designFormTitle">MR-D0001</h3></div><button type="submit" class="primary">Guardar cambios</button></div>
+          <div class="form-grid">
+            <label>ID de diseño<input id="d_id" readonly></label>
+            <label>Referencia original<input id="d_ref"></label>
+            <label>Pieza vinculada<select id="d_piece"></select></label>
+            <label>Campo decorativo<select id="d_campo"></select></label>
+            <label id="d_campo_otro_wrap" class="hidden">Otro campo<input id="d_campo_otro"></label>
+            <label>Clase de simetría<select id="d_simetria"></select></label>
+            <fieldset class="span-2"><legend>Técnica(s)</legend><div id="techniqueChecks" class="check-grid"></div></fieldset>
+            <label id="d_tecnica_otro_wrap" class="span-2 hidden">Otra técnica<input id="d_tecnica_otro"></label>
+            <label class="span-2">Esquema <small>Campo abierto: se construye durante el análisis.</small><input id="d_esquema"></label>
+            <label class="span-2">Colores <small>Descripción libre.</small><input id="d_colores" placeholder="Ej.: rojo, negro sobre ante…"></label>
+            <label class="span-2">Observaciones<textarea id="d_observaciones" rows="4"></textarea></label>
+            <div class="span-2 media-field">
+              <div><strong>Archivo gráfico del diseño</strong><small>SVG, PNG, JPG o WebP. Puede reemplazarse.</small></div>
+              <input id="d_image" type="file" accept="image/*,.svg">
+              <button id="removeDesignImage" type="button" class="danger-link">Quitar archivo</button>
+              <div id="designImagePreview" class="media-preview design-preview"></div>
+            </div>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <section id="exportar" class="view">
+      <div class="section-head"><div><span class="eyebrow">ANÁLISIS</span><h2>SPSS / Exportar</h2><p>La exportación mantiene separadas las unidades pieza y diseño y genera una matriz plana para análisis.</p></div></div>
+      <div class="export-grid">
+        <article><h3>Piezas</h3><p>Una fila por pieza. Útil para análisis morfológicos, contextuales y de procedencia.</p><button id="exportPieces" class="primary">Descargar piezas.csv</button></article>
+        <article><h3>Diseños</h3><p>Una fila por diseño, vinculada mediante ID_PIEZA.</p><button id="exportDesigns" class="primary">Descargar diseños.csv</button></article>
+        <article><h3>Matriz SPSS</h3><p>Una fila por diseño, con variables de pieza repetidas y técnicas convertidas a 0/1.</p><button id="exportSpss" class="primary">Descargar matriz_spss.csv</button></article>
+        <article><h3>Diccionario</h3><p>Descripción de variables y codificación básica para documentar los análisis.</p><button id="exportDictionary" class="secondary">Descargar diccionario.csv</button></article>
+        <article><h3>Respaldo</h3><p>Guarda todos los datos textuales en JSON. Las imágenes permanecen en este navegador.</p><button id="exportJson" class="secondary">Exportar JSON</button><label class="import-label">Importar JSON<input id="importJson" type="file" accept=".json,application/json"></label></article>
+        <article><h3>Estado de persistencia</h3><p>Esta versión guarda los datos y archivos en el navegador. El repositorio contiene la aplicación y la estructura maestra. La sincronización directa de ediciones con GitHub será la siguiente etapa.</p></article>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="detailDialog"><button id="closeDialog" class="dialog-close">×</button><div id="dialogContent"></div></dialog>
+  <div id="toast" class="toast" role="status"></div>
+
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
