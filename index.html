@@ -134,7 +134,11 @@
             <label>ID de diseño<input id="d_id" readonly></label>
             <label>Referencia original<input id="d_ref"></label>
             <label>Pieza vinculada<select id="d_piece"></select></label>
-            <label>Campo decorativo<select id="d_field"></select><small>Se selecciona entre los campos registrados para la pieza.</small></label>
+            <fieldset class="span-2 design-field-linker">
+              <legend>Campos decorativos vinculados</legend>
+              <small>Un mismo dibujo puede representar uno o varios campos decorativos de la pieza.</small>
+              <div id="d_fields" class="design-field-checks"></div>
+            </fieldset>
             <label id="d_campo_legacy_wrap" class="hidden">Campo anterior<input id="d_campo_legacy" readonly></label>
             <label>Clase de simetría<select id="d_simetria"></select></label>
             <fieldset class="span-2"><legend>Técnica(s)</legend><div id="techniqueChecks" class="check-grid"></div></fieldset>
