@@ -945,6 +945,54 @@
     try{const obj=JSON.parse(await f.text());if(!obj.pieces||!obj.designs)throw new Error("Formato inválido");data=migrateData(obj);saveData();refreshPieceSelect();renderPieceList();renderDesignList();renderCatalog();toast("Respaldo importado y actualizado");}catch(err){alert("No se pudo importar el archivo: "+err.message);}e.target.value="";
   };
 
+  async function movePieceToPosition(pieceId,targetPosition){
+    const ordered=orderedPieces();
+    const piece=ordered.find(p=>p.id===pieceId);if(!piece)return false;
+    const target=Math.max(1,Math.min(ordered.length,parseInt(targetPosition,10)||1));
+    const rest=ordered.filter(p=>p.uid!==piece.uid);
+    rest.splice(target-1,0,piece);
+    rest.forEach((p,i)=>p.display_order=i+1);
+    await repairIdSequences();
+    selectedPieceId=data.pieces.find(p=>p.uid===piece.uid)?.id||selectedPieceId;
+    loadPieceForm(selectedPieceId);
+    return true;
+  }
+
+  if($("movePieceBtn")) $("movePieceBtn").onclick=async()=>{
+    const p=data.pieces.find(x=>x.id===selectedPieceId);if(!p)return;
+    // Save the group choice before moving.
+    p.sample_group=$("p_group")?.value||p.sample_group||"sin_clasificar";
+    const target=$("p_order")?.value;
+    if(!target){toast("Indicá una posición");return;}
+    await movePieceToPosition(p.id,target);
+    toast("Pieza movida a la posición "+target+"; IDs relacionados actualizados");
+  };
+
+  async function applyPendingCommands(){
+    const pending=data.meta?.pending_commands||[];
+    if(!pending.length)return;
+    for(const cmd of [...pending]){
+      try{
+        if(cmd.type==="move_piece"){
+          let p=data.pieces.find(x=>x.id===cmd.piece || x.uid===cmd.piece || (x.id_history||[]).includes(cmd.piece) || x.legacy_id===cmd.piece);
+          if(p){
+            if(cmd.group)p.sample_group=cmd.group;
+            await movePieceToPosition(p.id,cmd.position||p.display_order||1);
+          }
+        }else if(cmd.type==="set_piece_group"){
+          const p=data.pieces.find(x=>x.id===cmd.piece || x.uid===cmd.piece || (x.id_history||[]).includes(cmd.piece) || x.legacy_id===cmd.piece);
+          if(p && cmd.group){p.sample_group=cmd.group;saveData();}
+        }
+        data.meta.applied_commands=data.meta.applied_commands||[];
+        if(!data.meta.applied_commands.includes(cmd.id))data.meta.applied_commands.push(cmd.id);
+        data.meta.pending_commands=data.meta.pending_commands.filter(x=>x.id!==cmd.id);
+        saveData();
+      }catch(err){
+        console.error("No se pudo aplicar comando",cmd,err);
+      }
+    }
+  }
+
   async function cleanupEmptyOrphanDrawings(){
     const keep=[];
     let removed=0;
@@ -999,7 +1047,7 @@
   async function repairIdSequences(){
     // Un único reindexado controlado: preserva el ID anterior en legacy_id
     // y mueve también las imágenes guardadas en IndexedDB.
-    const pieceOrder=[...data.pieces].sort((a,b)=>(a.created_order||numericId(a.id,"MR-P"))-(b.created_order||numericId(b.id,"MR-P")));
+    const pieceOrder=[...data.pieces].sort((a,b)=>(+a.display_order||999999)-(+b.display_order||999999) || (a.created_order||numericId(a.id,"MR-P"))-(b.created_order||numericId(b.id,"MR-P")));
     const pieceMap=new Map();
     pieceOrder.forEach((p,i)=>pieceMap.set(p.id,"MR-P"+String(i+1).padStart(4,"0")));
 
@@ -1028,23 +1076,39 @@
     data.pieces.forEach(p=>{
       const old=p.id,newId=pieceMap.get(old);
       if(old!==newId) pieceMediaMoves.push([old,newId]);
-      if(old!==newId && !p.legacy_id) p.legacy_id=old;
+      if(old!==newId){
+        if(!p.legacy_id) p.legacy_id=old;
+        p.id_history=Array.isArray(p.id_history)?p.id_history:[];
+        if(!p.id_history.includes(old))p.id_history.push(old);
+      }
       p.id=newId;
+      p.display_order=pieceOrder.findIndex(x=>x.uid===p.uid)+1;
     });
     data.fields.forEach(f=>{
       const old=f.id,newId=fieldMap.get(old);
-      if(old!==newId && !f.legacy_id) f.legacy_id=old;
+      if(old!==newId){
+        if(!f.legacy_id) f.legacy_id=old;
+        f.id_history=Array.isArray(f.id_history)?f.id_history:[];
+        if(!f.id_history.includes(old))f.id_history.push(old);
+      }
       f.id=newId;
       f.piece_id=pieceMap.get(f.piece_id)||f.piece_id;
+      f.piece_uid=data.pieces.find(p=>p.id===f.piece_id)?.uid||f.piece_uid||"";
       if(f.design_id) f.design_id=drawingMap.get(f.design_id)||f.design_id;
     });
     data.designs.forEach(d=>{
       const old=d.id,newId=drawingMap.get(old);
       if(old!==newId) drawingMediaMoves.push([old,newId]);
-      if(old!==newId && !d.legacy_id) d.legacy_id=old;
+      if(old!==newId){
+        if(!d.legacy_id) d.legacy_id=old;
+        d.id_history=Array.isArray(d.id_history)?d.id_history:[];
+        if(!d.id_history.includes(old))d.id_history.push(old);
+      }
       d.id=newId;
       d.piece_id=pieceMap.get(d.piece_id)||d.piece_id;
       d.field_id=fieldMap.get(d.field_id)||d.field_id;
+      d.piece_uid=data.pieces.find(p=>p.id===d.piece_id)?.uid||d.piece_uid||"";
+      d.field_uid=data.fields.find(f=>f.id===d.field_id)?.uid||d.field_uid||"";
     });
 
     // Move media via temporary keys to avoid collisions.
@@ -1078,6 +1142,9 @@
       if(pieceIds.has(p.id)) issues.push("ID de pieza duplicado: "+p.id);
       pieceIds.add(p.id);
       if(!p.id?.match(/^MR-P\d{4,}$/)) warnings.push("ID de pieza fuera del patrón: "+(p.id||"(vacío)"));
+      if(!p.uid) issues.push(p.id+" no tiene UID interno estable");
+      if(!p.display_order) warnings.push(p.id+" no tiene posición de muestra");
+      if(!p.sample_group) warnings.push(p.id+" no tiene grupo de muestra");
     });
 
     data.fields.forEach(f=>{
@@ -1159,4 +1226,5 @@
 
   // Initial render
   renderPieceList();renderDesignList();loadPieceForm(selectedPieceId);renderCatalog();
+  applyPendingCommands();
 })();
