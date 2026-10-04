@@ -63,7 +63,9 @@
     d.fields.forEach(f=>byKey.set([f.piece_id,f.nombre,f.nombre_otro].join("||"),f));
     d.designs.forEach(des=>{
       if(!("field_id" in des)) des.field_id="";
-      if(des.field_id || !des.piece_id || !des.campo_decorativo) return;
+      if(!Array.isArray(des.field_ids)) des.field_ids=des.field_id?[des.field_id]:[];
+      if(des.field_id && !des.field_ids.includes(des.field_id)) des.field_ids.unshift(des.field_id);
+      if((des.field_id || des.field_ids.length) || !des.piece_id || !des.campo_decorativo) return;
       const key=[des.piece_id,des.campo_decorativo,des.campo_otro||""].join("||");
       let f=byKey.get(key);
       if(!f){
@@ -71,8 +73,9 @@
         d.fields.push(f);byKey.set(key,f);
       }
       des.field_id=f.id;
+      des.field_ids=[f.id];
     });
-    d.schema_version=3;
+    d.schema_version=4;
     return d;
   }
 
@@ -281,7 +284,16 @@
   async function openPieceDetail(id){
     const p=data.pieces.find(x=>x.id===id); if(!p)return;
     const ds=data.designs.filter(d=>d.piece_id===id);
+    const fs=data.fields.filter(f=>f.piece_id===id);
     const u=await mediaUrl("piece:"+id);
+
+    const fieldCards=fs.map((f,index)=>{
+      const linked=ds.filter(d=>(d.field_ids||[d.field_id]).includes(f.id));
+      const techs=[...new Set(linked.flatMap(d=>d.tecnicas||[]))];
+      const syms=[...new Set(linked.map(d=>d.clase_simetria).filter(Boolean))];
+      const schemes=[...new Set(linked.map(d=>d.esquema).filter(Boolean))];
+      return '<article class="piece-field-summary"><div class="piece-field-number">'+(index+1)+'</div><div><div class="piece-field-title"><strong>'+esc(f.id)+'</strong><span>'+esc(fieldLabel(f))+'</span></div><dl><dt>Diseño(s)</dt><dd>'+esc(linked.map(d=>d.id).join(", ")||"—")+'</dd><dt>Técnica(s)</dt><dd>'+esc(techs.join(", ")||"—")+'</dd><dt>Clase de simetría</dt><dd>'+esc(syms.join(", ")||"—")+'</dd><dt>Esquema(s)</dt><dd>'+esc(schemes.join(", ")||"—")+'</dd></dl></div></article>';
+    });
 
     const designCards=[];
     for(const d of ds){
@@ -289,7 +301,7 @@
       designCards.push(`<article class="linked-design-card">
         <div class="linked-design-media paste-target" tabindex="0" role="button" data-modal-paste-design="${esc(d.id)}">${du?'<img src="'+du+'" alt="Dibujo '+esc(d.id)+'">':'<span class="linked-design-empty">Dibujo no adjuntado · clic y Ctrl+V</span>'}</div>
         <div class="linked-design-info">
-          <div><strong>${esc(d.id)}</strong><span>Esquema: ${esc(d.esquema||"pendiente")}</span><span><b>Clase de simetría:</b> ${esc(d.clase_simetria||"pendiente")}</span></div>
+          <div><strong>${esc(d.id)}</strong><span><b>Campo(s):</b> ${esc((d.field_ids||[d.field_id]).filter(Boolean).map(fid=>{const f=data.fields.find(x=>x.id===fid);return f?fieldLabel(f):fid;}).join(" · ")||"sin vincular")}</span><span>Esquema: ${esc(d.esquema||"pendiente")}</span><span><b>Clase de simetría:</b> ${esc(d.clase_simetria||"pendiente")}</span></div>
           <div class="linked-design-actions">
             <button type="button" class="mini design-view-btn" data-design-id="${esc(d.id)}">Ver ficha</button>
             <label class="design-upload-btn">${du?"Reemplazar dibujo":"Adjuntar dibujo"}<input type="file" accept="image/*,.svg" data-design-upload="${esc(d.id)}"></label>
@@ -298,7 +310,7 @@
       </article>`);
     }
 
-    $("dialogContent").innerHTML=`<div class="detail-grid"><div><div class="detail-media">${u?'<img src="'+u+'">':'<span class="placeholder">'+esc(id)+'</span>'}</div>${p.fotogrametria_url?'<iframe class="embed-frame" src="'+esc(p.fotogrametria_url)+'" allowfullscreen loading="lazy"></iframe>':''}</div><div class="detail-data"><span class="card-id">${esc(id)}</span><h2>${esc(p.forma||"Pieza sin clasificar")}</h2><dl class="detail-list"><dt>Sigla</dt><dd>${esc(p.sigla||"—")}</dd><dt>Sitio</dt><dd>${esc(p.sitio||"—")}</dd><dt>Colección</dt><dd>${esc(p.coleccion||"—")}</dd><dt>Integridad</dt><dd>${esc(p.integridad||"—")}</dd><dt>Publicación</dt><dd>${esc(p.publicacion||"—")}</dd><dt>Página</dt><dd>${esc(p.pagina||"—")}</dd><dt>Observaciones</dt><dd>${esc(p.observaciones||"—")}</dd><dt>Clase de simetría</dt><dd>${esc([...new Set(ds.map(d=>d.clase_simetria).filter(Boolean))].join(", ")||"—")}</dd></dl><div class="design-list-detail"><h3>Diseños vinculados</h3><p class="design-list-help">Cada diseño puede adjuntar o reemplazar su dibujo directamente desde esta ficha.</p>${ds.length?designCards.join(""):'<p>Sin diseños vinculados.</p>'}</div></div></div>`;
+    $("dialogContent").innerHTML=`<div class="detail-grid"><div><div class="detail-media">${u?'<img src="'+u+'">':'<span class="placeholder">'+esc(id)+'</span>'}</div>${p.fotogrametria_url?'<iframe class="embed-frame" src="'+esc(p.fotogrametria_url)+'" allowfullscreen loading="lazy"></iframe>':''}</div><div class="detail-data"><span class="card-id">${esc(id)}</span><h2>${esc(p.forma||"Pieza sin clasificar")}</h2><dl class="detail-list"><dt>Sigla</dt><dd>${esc(p.sigla||"—")}</dd><dt>Sitio</dt><dd>${esc(p.sitio||"—")}</dd><dt>Colección</dt><dd>${esc(p.coleccion||"—")}</dd><dt>Integridad</dt><dd>${esc(p.integridad||"—")}</dd><dt>Publicación</dt><dd>${esc(p.publicacion||"—")}</dd><dt>Página</dt><dd>${esc(p.pagina||"—")}</dd><dt>Observaciones</dt><dd>${esc(p.observaciones||"—")}</dd><dt>Campos decorados</dt><dd>${fs.length}</dd><dt>Clase de simetría</dt><dd>${esc([...new Set(ds.map(d=>d.clase_simetria).filter(Boolean))].join(", ")||"—")}</dd></dl><div class="field-summary-section"><h3>Campos / sectores decorados</h3><p class="design-list-help">Cada campo es una unidad fundamental de la muestra de referencia y puede compartir un mismo dibujo con otros campos.</p>${fieldCards.length?fieldCards.join(""):'<p>Sin campos decorativos registrados.</p>'}</div><div class="design-list-detail"><h3>Dibujos / diseños vinculados</h3><p class="design-list-help">Cada diseño puede adjuntar o reemplazar su dibujo directamente desde esta ficha.</p>${ds.length?designCards.join(""):'<p>Sin diseños vinculados.</p>'}</div></div></div>`;
 
     $("dialogContent").querySelectorAll("[data-modal-paste-design]").forEach(zone=>{
       const designId=zone.dataset.modalPasteDesign;
@@ -394,18 +406,21 @@
     return [...catalog.map(x=>x.nombre),"Otro"];
   }
 
-  function refreshDesignFieldSelect(pieceId,current=""){
-    const el=$("d_field"); if(!el)return;
+  function refreshDesignFieldSelect(pieceId,current=[]){
+    const box=$("d_fields"); if(!box)return;
+    const selected=Array.isArray(current)?current.filter(Boolean):[current].filter(Boolean);
     const fields=data.fields.filter(f=>f.piece_id===pieceId);
-    el.innerHTML="";
-    const blank=document.createElement("option");
-    blank.value=""; blank.textContent=fields.length?"Seleccionar campo…":"Primero marcá un campo decorativo en la pieza";
-    el.appendChild(blank);
-    fields.forEach(f=>{
-      const o=document.createElement("option");
-      o.value=f.id;o.textContent=f.id+" · "+fieldLabel(f);el.appendChild(o);
+    box.innerHTML="";
+    if(!fields.length){
+      box.innerHTML='<span class="design-list-help">Primero registrá los campos decorativos de la pieza.</span>';
+      return;
+    }
+    fields.forEach((f,index)=>{
+      const label=document.createElement("label");
+      label.className="design-field-choice";
+      label.innerHTML='<input type="checkbox" value="'+esc(f.id)+'" '+(selected.includes(f.id)?'checked':'')+'><span><b>Campo '+(index+1)+'</b><strong>'+esc(f.id)+'</strong><small>'+esc(fieldLabel(f))+'</small></span>';
+      box.appendChild(label);
     });
-    el.value=fields.some(f=>f.id===current)?current:"";
   }
 
   function renderFieldPresetSelector(pieceId){
@@ -438,7 +453,7 @@
         }
       }else{
         if(existingField){
-          if(data.designs.some(d=>d.field_id===existingField.id)){
+          if(data.designs.some(d=>(d.field_ids||[d.field_id]).includes(existingField.id))){
             input.checked=true;toast("No se puede quitar: hay diseños vinculados");
             return;
           }
@@ -462,7 +477,7 @@
     fields.forEach(f=>{
       const row=document.createElement("article");row.className="field-row";
       const options=["",...allowed].filter((v,i,a)=>a.indexOf(v)===i).map(v=>'<option value="'+esc(v)+'" '+(v===f.nombre?'selected':'')+'>'+(v||"Seleccionar…")+'</option>').join("");
-      const linked=data.designs.filter(d=>d.field_id===f.id);
+      const linked=data.designs.filter(d=>(d.field_ids||[d.field_id]).includes(f.id));
       row.innerHTML=`
         <div class="field-row-head">
           <div><strong>${esc(f.id)}${f.catalog_code?" · "+esc(f.catalog_code):""}</strong>${linked.length?'<small class="field-linked-ids">'+linked.map(d=>esc(d.id)).join(" · ")+'</small>':""}</div>
@@ -483,13 +498,13 @@
       const catalog=fieldCatalogForPiece(pieceId).find(c=>c.nombre===f.nombre);
       f.catalog_code=catalog?.codigo||"";
       f.updated_at=nowIso();
-      data.designs.filter(d=>d.field_id===f.id).forEach(d=>{d.campo_decorativo=f.nombre;d.campo_otro=f.nombre_otro||"";});
+      data.designs.filter(d=>(d.field_ids||[d.field_id]).includes(f.id)).forEach(d=>{d.campo_decorativo=f.nombre;d.campo_otro=f.nombre_otro||"";});
       saveData();renderPieceFieldsEditor(pieceId);
     }));
     box.querySelectorAll("[data-field-other]").forEach(el=>el.addEventListener("change",()=>{
       const f=data.fields.find(x=>x.id===el.dataset.fieldOther);if(!f)return;
       f.nombre_otro=el.value.trim();f.catalog_code="";f.updated_at=nowIso();
-      data.designs.filter(d=>d.field_id===f.id).forEach(d=>{d.campo_decorativo=f.nombre;d.campo_otro=f.nombre_otro||"";});
+      data.designs.filter(d=>(d.field_ids||[d.field_id]).includes(f.id)).forEach(d=>{d.campo_decorativo=f.nombre;d.campo_otro=f.nombre_otro||"";});
       saveData();
     }));
     box.querySelectorAll("[data-field-notes]").forEach(el=>el.addEventListener("change",()=>{
@@ -505,6 +520,7 @@
         ref_original:"",
         piece_id:pieceId,
         field_id:f.id,
+        field_ids:[f.id],
         campo_decorativo:f.nombre||"",
         campo_otro:f.nombre_otro||"",
         tecnicas:[],
@@ -525,7 +541,7 @@
     }));
     box.querySelectorAll("[data-field-delete]").forEach(btn=>btn.addEventListener("click",()=>{
       const id=btn.dataset.fieldDelete;
-      if(data.designs.some(d=>d.field_id===id)){toast("No se puede eliminar: hay diseños vinculados");return;}
+      if(data.designs.some(d=>(d.field_ids||[d.field_id]).includes(id))){toast("No se puede eliminar: hay diseños vinculados");return;}
       data.fields=data.fields.filter(f=>f.id!==id);saveData();renderPieceFieldsEditor(pieceId);toast("Campo decorativo eliminado");
     }));
   }
@@ -620,7 +636,7 @@
 
   function loadDesignForm(id){
     const d=data.designs.find(x=>x.id===id);if(!d)return;selectedDesignId=id;
-    refreshPieceSelect();$("designFormTitle").textContent=d.id;$("d_id").value=d.id;$("d_ref").value=d.ref_original||"";$("d_piece").value=d.piece_id||"";refreshDesignFieldSelect(d.piece_id,d.field_id||"");$("d_simetria").value=d.clase_simetria||"";$("d_esquema").value=d.esquema||"";$("d_colores").value=d.colores||"";$("d_observaciones").value=d.observaciones||"";$("d_tecnica_otro").value=d.tecnica_otro||"";renderTechniqueChecks(d.tecnicas||[]);$("d_campo_legacy").value=d.campo_decorativo?([d.campo_decorativo,d.campo_otro].filter(Boolean).join(" · ")):"";$("d_campo_legacy_wrap").classList.toggle("hidden",!!d.field_id||!d.campo_decorativo);setOtherVisibility();previewFile("design:"+id,"designImagePreview");renderDesignList();
+    refreshPieceSelect();$("designFormTitle").textContent=d.id;$("d_id").value=d.id;$("d_ref").value=d.ref_original||"";$("d_piece").value=d.piece_id||"";refreshDesignFieldSelect(d.piece_id,(d.field_ids&&d.field_ids.length)?d.field_ids:(d.field_id?[d.field_id]:[]));$("d_simetria").value=d.clase_simetria||"";$("d_esquema").value=d.esquema||"";$("d_colores").value=d.colores||"";$("d_observaciones").value=d.observaciones||"";$("d_tecnica_otro").value=d.tecnica_otro||"";renderTechniqueChecks(d.tecnicas||[]);$("d_campo_legacy").value=d.campo_decorativo?([d.campo_decorativo,d.campo_otro].filter(Boolean).join(" · ")):"";$("d_campo_legacy_wrap").classList.toggle("hidden",!!((d.field_ids&&d.field_ids.length)||d.field_id)||!d.campo_decorativo);setOtherVisibility();previewFile("design:"+id,"designImagePreview");renderDesignList();
     bindPasteZone($("designImagePreview"),id+"-diseno",async file=>{
       await putFile("design:"+id,file);
       d.design_file_name=file.name;d.updated_at=nowIso();saveData();
@@ -628,17 +644,32 @@
       toast("Dibujo pegado en "+id);
     });
   }
-  $("d_piece").onchange=()=>refreshDesignFieldSelect($("d_piece").value,"");
+  $("d_piece").onchange=()=>refreshDesignFieldSelect($("d_piece").value,[]);
   $("designForm").onsubmit=async e=>{
     e.preventDefault();const d=data.designs.find(x=>x.id===selectedDesignId);if(!d)return;
-    const selectedField=data.fields.find(f=>f.id===$("d_field").value);
-    Object.assign(d,{ref_original:$("d_ref").value.trim(),piece_id:$("d_piece").value,field_id:selectedField?.id||"",campo_decorativo:selectedField?.nombre||"",campo_otro:selectedField?.nombre_otro||"",clase_simetria:$("d_simetria").value,tecnicas:[...document.querySelectorAll('#techniqueChecks input:checked')].map(x=>x.value),tecnica_otro:$("d_tecnica_otro").value.trim(),esquema:$("d_esquema").value.trim(),colores:$("d_colores").value.trim(),observaciones:$("d_observaciones").value.trim(),updated_at:nowIso()});
+    const selectedFieldIds=[...document.querySelectorAll('#d_fields input:checked')].map(x=>x.value);
+    const selectedFields=selectedFieldIds.map(id=>data.fields.find(f=>f.id===id)).filter(Boolean);
+    Object.assign(d,{
+      ref_original:$("d_ref").value.trim(),
+      piece_id:$("d_piece").value,
+      field_ids:selectedFieldIds,
+      field_id:selectedFieldIds[0]||"",
+      campo_decorativo:selectedFields.map(f=>f.nombre==="Otro"?(f.nombre_otro||"Otro"):f.nombre).join(" | "),
+      campo_otro:"",
+      clase_simetria:$("d_simetria").value,
+      tecnicas:[...document.querySelectorAll('#techniqueChecks input:checked')].map(x=>x.value),
+      tecnica_otro:$("d_tecnica_otro").value.trim(),
+      esquema:$("d_esquema").value.trim(),
+      colores:$("d_colores").value.trim(),
+      observaciones:$("d_observaciones").value.trim(),
+      updated_at:nowIso()
+    });
     const f=$("d_image").files[0];if(f){await putFile("design:"+d.id,f);d.design_file_name=f.name;$("d_image").value="";}
     saveData();renderDesignList();await previewFile("design:"+d.id,"designImagePreview");toast("Diseño guardado");
   };
   $("removeDesignImage").onclick=async()=>{await deleteFile("design:"+selectedDesignId);const d=data.designs.find(x=>x.id===selectedDesignId);if(d)d.design_file_name="";saveData();previewFile("design:"+selectedDesignId,"designImagePreview");toast("Archivo eliminado");};
   $("newDesignBtn").onclick=()=>{
-    const id=nextId("MR-D",data.designs);data.designs.push({id,ref_original:"",piece_id:"",field_id:"",campo_decorativo:"",campo_otro:"",tecnicas:[],tecnica_otro:"",esquema:"",clase_simetria:"",colores:"",observaciones:"",design_file_name:"",updated_at:""});selectedDesignId=id;saveData();renderDesignList();loadDesignForm(id);toast("Nuevo diseño creado: "+id);
+    const id=nextId("MR-D",data.designs);data.designs.push({id,ref_original:"",piece_id:"",field_id:"",field_ids:[],campo_decorativo:"",campo_otro:"",tecnicas:[],tecnica_otro:"",esquema:"",clase_simetria:"",colores:"",observaciones:"",design_file_name:"",updated_at:""});selectedDesignId=id;saveData();renderDesignList();loadDesignForm(id);toast("Nuevo diseño creado: "+id);
   };
 
   // CSV/SPSS exports
@@ -653,13 +684,13 @@
     {key:"id",label:"ID_PIEZA"},{key:"caja",label:"CAJA"},{key:"sigla",label:"SIGLA"},{key:"sitio",label:"SITIO"},{key:"coleccion",label:"COLECCION"},{key:"publicacion",label:"PUBLICACION"},{key:"pagina",label:"PAGINA_LAMINA"},{key:"forma",label:"FORMA"},{key:"forma_otro",label:"FORMA_OTRO"},{key:"integridad",label:"INTEGRIDAD"},{key:"fotogrametria_url",label:"FOTOGRAMETRIA_URL"},{key:"photo_file_name",label:"FOTO_ARCHIVO"},{key:"observaciones",label:"OBSERVACIONES"}
   ]));
   $("exportDesigns").onclick=()=>download("muestra_referencia_disenos.csv",toCsv(data.designs,[
-    {key:"id",label:"ID_DISENO"},{key:"ref_original",label:"REF_ORIGINAL"},{key:"piece_id",label:"ID_PIEZA"},{key:"field_id",label:"ID_CAMPO"},{key:"campo_decorativo",label:"CAMPO_DECORATIVO"},{key:"campo_otro",label:"CAMPO_OTRO"},{get:r=>(r.tecnicas||[]).join("|"),label:"TECNICAS"},{key:"tecnica_otro",label:"TECNICA_OTRO"},{key:"esquema",label:"ESQUEMA"},{key:"clase_simetria",label:"CLASE_SIMETRIA"},{key:"colores",label:"COLORES"},{key:"design_file_name",label:"DISENO_ARCHIVO"},{key:"observaciones",label:"OBSERVACIONES"}
+    {key:"id",label:"ID_DISENO"},{key:"ref_original",label:"REF_ORIGINAL"},{key:"piece_id",label:"ID_PIEZA"},{key:"field_id",label:"ID_CAMPO_PRINCIPAL"},{get:r=>(r.field_ids||[]).join("|"),label:"IDS_CAMPO"},{key:"campo_decorativo",label:"CAMPO_DECORATIVO"},{key:"campo_otro",label:"CAMPO_OTRO"},{get:r=>(r.tecnicas||[]).join("|"),label:"TECNICAS"},{key:"tecnica_otro",label:"TECNICA_OTRO"},{key:"esquema",label:"ESQUEMA"},{key:"clase_simetria",label:"CLASE_SIMETRIA"},{key:"colores",label:"COLORES"},{key:"design_file_name",label:"DISENO_ARCHIVO"},{key:"observaciones",label:"OBSERVACIONES"}
   ]));
   $("exportSpss").onclick=()=>{
     const techs=data.options.tecnicas.filter(x=>x!=="Otro");
     const rows=data.designs.map(d=>{const p=data.pieces.find(x=>x.id===d.piece_id)||{};return {...d,...Object.fromEntries(Object.entries(p).map(([k,v])=>["p_"+k,v])),...Object.fromEntries(techs.map(t=>["tec_"+slug(t),(d.tecnicas||[]).includes(t)?1:0])),tec_otro:(d.tecnicas||[]).includes("Otro")?1:0};});
     const cols=[
-      {key:"id",label:"ID_DISENO"},{key:"ref_original",label:"REF_ORIGINAL"},{key:"piece_id",label:"ID_PIEZA"},{key:"field_id",label:"ID_CAMPO"},
+      {key:"id",label:"ID_DISENO"},{key:"ref_original",label:"REF_ORIGINAL"},{key:"piece_id",label:"ID_PIEZA"},{key:"field_id",label:"ID_CAMPO_PRINCIPAL"},{get:r=>(r.field_ids||[]).join("|"),label:"IDS_CAMPO"},
       {key:"p_sitio",label:"SITIO"},{key:"p_coleccion",label:"COLECCION"},{key:"p_sigla",label:"SIGLA"},{key:"p_forma",label:"FORMA"},{key:"p_integridad",label:"INTEGRIDAD"},
       {key:"campo_decorativo",label:"CAMPO_DECORATIVO"},{key:"campo_otro",label:"CAMPO_OTRO"},
       ...techs.map(t=>({key:"tec_"+slug(t),label:"TEC_"+slug(t).toUpperCase()})),{key:"tec_otro",label:"TEC_OTRO"},
