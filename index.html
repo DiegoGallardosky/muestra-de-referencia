@@ -87,8 +87,10 @@
         <form id="pieceForm" class="editor-card">
           <div class="form-title"><div><span class="record-type">PIEZA</span><h3 id="pieceFormTitle">MR-P0001</h3></div><button type="submit" class="primary">Guardar cambios</button></div>
           <div class="form-grid">
-            <label>ID de pieza<input id="p_id" readonly></label>
+            <label>ID visible de pieza<input id="p_id" readonly><small>Puede cambiar si se reorganiza la muestra; la identidad interna se conserva.</small></label>
             <label>Caja<input id="p_caja"></label>
+            <label>Grupo de la muestra<select id="p_group"></select></label>
+            <label>Posición en la muestra<div class="inline-order-control"><input id="p_order" type="number" min="1" step="1"><button id="movePieceBtn" type="button" class="mini">Mover</button></div><small>Reordena la pieza y actualiza automáticamente MR-P, MR-C y MR-D relacionados.</small></label>
             <label>Sigla<input id="p_sigla" placeholder="Puede quedar vacía"></label>
             <label>Sitio<input id="p_sitio"></label>
             <label>Colección<input id="p_coleccion"></label>
@@ -173,6 +175,7 @@
   <div id="toast" class="toast" role="status"></div>
 
   <script src="data.js"></script>
+  <script src="migrations.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
