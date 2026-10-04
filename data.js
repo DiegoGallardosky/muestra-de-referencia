@@ -57,6 +57,7 @@ window.MR_SEED = (() => {
       ref_original: originalRef(n),
       piece_id: pieceForDesign[id] || "",
       field_id:"",
+      field_ids:[],
       campo_decorativo:"",
       campo_otro:"",
       tecnicas:[],
@@ -71,8 +72,8 @@ window.MR_SEED = (() => {
   });
 
   return {
-    version:"0.3.0",
-    schema_version:3,
+    version:"0.4.0",
+    schema_version:4,
     pieces,
     fields:[],
     designs,
