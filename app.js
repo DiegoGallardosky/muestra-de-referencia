@@ -55,6 +55,8 @@
       if(!("clase_simetria" in f)) f.clase_simetria="";
       if(!("colores" in f)) f.colores="";
       if(!("design_id" in f)) f.design_id="";
+      if(!("legacy_id" in f)) f.legacy_id="";
+      if(!("created_order" in f)) f.created_order=0;
     });
 
     const nextFieldId=()=>{
@@ -67,8 +69,10 @@
     // ninguna variable anterior.
     const byKey=new Map();
     d.fields.forEach(f=>byKey.set([f.piece_id,f.nombre,f.nombre_otro].join("||"),f));
-    d.designs.forEach(des=>{
+    d.designs.forEach((des,index)=>{
       if(!("field_id" in des)) des.field_id="";
+      if(!("legacy_id" in des)) des.legacy_id="";
+      if(!("created_order" in des)) des.created_order=index+1;
       if(Array.isArray(des.field_ids) && des.field_ids.length){
         if(!des.field_id) des.field_id=des.field_ids[0];
         if(des.field_ids.length>1 && !Array.isArray(des.legacy_field_ids)) des.legacy_field_ids=[...des.field_ids];
@@ -94,6 +98,12 @@
         }
       }
     });
+    d.pieces.forEach((p,index)=>{
+      if(!("legacy_id" in p)) p.legacy_id="";
+      if(!("created_order" in p)) p.created_order=index+1;
+    });
+    d.fields.forEach((f,index)=>{ if(!f.created_order) f.created_order=index+1; });
+
     // Normalización segura de relaciones. No elimina registros ni archivos.
     d.fields.forEach(f=>{
       const linked=d.designs.filter(des=>des.field_id===f.id);
@@ -173,6 +183,13 @@
       const tx=db.transaction(DB_STORE,"readwrite"); tx.objectStore(DB_STORE).delete(key);
       tx.oncomplete=()=>resolve(); tx.onerror=()=>reject(tx.error);
     });
+  }
+  async function moveFileKey(oldKey,newKey){
+    if(oldKey===newKey)return;
+    const file=await getFile(oldKey);
+    if(!file)return;
+    await putFile(newKey,file);
+    await deleteFile(oldKey);
   }
   async function previewFile(key, containerId){
     const box=$(containerId); if(!box) return;
@@ -913,6 +930,128 @@
     try{const obj=JSON.parse(await f.text());if(!obj.pieces||!obj.designs)throw new Error("Formato inválido");data=migrateData(obj);saveData();refreshPieceSelect();renderPieceList();renderDesignList();renderCatalog();toast("Respaldo importado y actualizado");}catch(err){alert("No se pudo importar el archivo: "+err.message);}e.target.value="";
   };
 
+  async function cleanupEmptyOrphanDrawings(){
+    const keep=[];
+    let removed=0;
+    for(const d of data.designs){
+      const linkedField=data.fields.find(f=>f.id===d.field_id);
+      if(linkedField){ keep.push(d); continue; }
+      const hasFile=!!(await getFile("design:"+d.id));
+      const hasData=!!(
+        d.design_file_name || d.ref_original || d.esquema || d.clase_simetria ||
+        d.colores || d.observaciones || d.campo_decorativo ||
+        (d.tecnicas||[]).length || hasFile
+      );
+      if(hasData){ keep.push(d); continue; }
+      removed++;
+    }
+    if(removed){
+      data.designs=keep;
+      saveData();
+      renderDesignList();
+      refreshStats();
+    }
+    return removed;
+  }
+
+  function numericId(id,prefix){
+    const n=parseInt(String(id||"").replace(prefix,""),10);
+    return Number.isFinite(n)?n:999999;
+  }
+
+  function idSequenceProblems(){
+    const problems=[];
+    const pieceSorted=[...data.pieces].sort((a,b)=>numericId(a.id,"MR-P")-numericId(b.id,"MR-P"));
+    pieceSorted.forEach((p,i)=>{
+      const expected="MR-P"+String(i+1).padStart(4,"0");
+      if(p.id!==expected) problems.push("Piezas: se esperaba "+expected+" y existe "+p.id);
+    });
+
+    const fieldSorted=[...data.fields].sort((a,b)=>numericId(a.id,"MR-C")-numericId(b.id,"MR-C"));
+    fieldSorted.forEach((f,i)=>{
+      const expected="MR-C"+String(i+1).padStart(4,"0");
+      if(f.id!==expected) problems.push("Campos: se esperaba "+expected+" y existe "+f.id);
+    });
+
+    const drawingSorted=[...data.designs].sort((a,b)=>numericId(a.id,"MR-D")-numericId(b.id,"MR-D"));
+    drawingSorted.forEach((d,i)=>{
+      const expected="MR-D"+String(i+1).padStart(4,"0");
+      if(d.id!==expected) problems.push("Dibujos: se esperaba "+expected+" y existe "+d.id);
+    });
+    return problems;
+  }
+
+  async function repairIdSequences(){
+    // Un único reindexado controlado: preserva el ID anterior en legacy_id
+    // y mueve también las imágenes guardadas en IndexedDB.
+    const pieceOrder=[...data.pieces].sort((a,b)=>(a.created_order||numericId(a.id,"MR-P"))-(b.created_order||numericId(b.id,"MR-P")));
+    const pieceMap=new Map();
+    pieceOrder.forEach((p,i)=>pieceMap.set(p.id,"MR-P"+String(i+1).padStart(4,"0")));
+
+    const fieldOrder=[...data.fields].sort((a,b)=>{
+      const pa=pieceOrder.findIndex(p=>p.id===a.piece_id), pb=pieceOrder.findIndex(p=>p.id===b.piece_id);
+      if(pa!==pb)return pa-pb;
+      const ca=String(a.catalog_code||"").match(/\d+/)?.[0]||999;
+      const cb=String(b.catalog_code||"").match(/\d+/)?.[0]||999;
+      if(+ca!==+cb)return +ca-+cb;
+      return (a.created_order||numericId(a.id,"MR-C"))-(b.created_order||numericId(b.id,"MR-C"));
+    });
+    const fieldMap=new Map();
+    fieldOrder.forEach((f,i)=>fieldMap.set(f.id,"MR-C"+String(i+1).padStart(4,"0")));
+
+    const drawingOrder=[...data.designs].sort((a,b)=>{
+      const fa=fieldOrder.findIndex(f=>f.id===a.field_id), fb=fieldOrder.findIndex(f=>f.id===b.field_id);
+      if(fa!==fb)return fa-fb;
+      return (a.created_order||numericId(a.id,"MR-D"))-(b.created_order||numericId(b.id,"MR-D"));
+    });
+    const drawingMap=new Map();
+    drawingOrder.forEach((d,i)=>drawingMap.set(d.id,"MR-D"+String(i+1).padStart(4,"0")));
+
+    // Save old references before mutation.
+    const pieceMediaMoves=[];
+    const drawingMediaMoves=[];
+    data.pieces.forEach(p=>{
+      const old=p.id,newId=pieceMap.get(old);
+      if(old!==newId) pieceMediaMoves.push([old,newId]);
+      if(old!==newId && !p.legacy_id) p.legacy_id=old;
+      p.id=newId;
+    });
+    data.fields.forEach(f=>{
+      const old=f.id,newId=fieldMap.get(old);
+      if(old!==newId && !f.legacy_id) f.legacy_id=old;
+      f.id=newId;
+      f.piece_id=pieceMap.get(f.piece_id)||f.piece_id;
+      if(f.design_id) f.design_id=drawingMap.get(f.design_id)||f.design_id;
+    });
+    data.designs.forEach(d=>{
+      const old=d.id,newId=drawingMap.get(old);
+      if(old!==newId) drawingMediaMoves.push([old,newId]);
+      if(old!==newId && !d.legacy_id) d.legacy_id=old;
+      d.id=newId;
+      d.piece_id=pieceMap.get(d.piece_id)||d.piece_id;
+      d.field_id=fieldMap.get(d.field_id)||d.field_id;
+    });
+
+    // Move media via temporary keys to avoid collisions.
+    for(const [oldId] of pieceMediaMoves) await moveFileKey("piece:"+oldId,"tmp-piece:"+oldId);
+    for(const [oldId] of drawingMediaMoves) await moveFileKey("design:"+oldId,"tmp-design:"+oldId);
+    for(const [oldId,newId] of pieceMediaMoves) await moveFileKey("tmp-piece:"+oldId,"piece:"+newId);
+    for(const [oldId,newId] of drawingMediaMoves) await moveFileKey("tmp-design:"+oldId,"design:"+newId);
+
+    data.pieces.sort((a,b)=>numericId(a.id,"MR-P")-numericId(b.id,"MR-P"));
+    data.fields.sort((a,b)=>numericId(a.id,"MR-C")-numericId(b.id,"MR-C"));
+    data.designs.sort((a,b)=>numericId(a.id,"MR-D")-numericId(b.id,"MR-D"));
+    selectedPieceId=pieceMap.get(selectedPieceId)||data.pieces[0]?.id||"";
+    selectedDesignId=drawingMap.get(selectedDesignId)||data.designs[0]?.id||"";
+    saveData();
+    refreshPieceSelect();
+    renderPieceList();
+    renderDesignList();
+    renderCatalog();
+    if(selectedPieceId) loadPieceForm(selectedPieceId);
+    return {pieces:pieceMediaMoves.length,fields:[...fieldMap].filter(([a,b])=>a!==b).length,drawings:drawingMediaMoves.length};
+  }
+
   function auditDatabase(){
     const issues=[];
     const warnings=[];
@@ -956,16 +1095,30 @@
       if(!d.field_id && (d.design_file_name||d.esquema||d.clase_simetria||(d.tecnicas||[]).length)) warnings.push(d.id+" tiene información pero no está vinculado a un campo");
     });
 
+    const seq=idSequenceProblems();
+    seq.forEach(x=>warnings.push("Secuencia ID: "+x));
     return {issues,warnings};
   }
 
-  if($("runAudit")) $("runAudit").onclick=()=>{
+  if($("runAudit")) $("runAudit").onclick=async()=>{
+    const removed=await cleanupEmptyOrphanDrawings();
     const r=auditDatabase();
     const box=$("auditSummary");
-    box.innerHTML='<strong>'+r.issues.length+' problema(s) crítico(s)</strong><span>'+r.warnings.length+' advertencia(s)</span>'+
+    box.innerHTML=(removed?'<em>Se eliminaron automáticamente '+removed+' dibujo(s) vacío(s) sin campo.</em>':'')+
+      '<strong>'+r.issues.length+' problema(s) crítico(s)</strong><span>'+r.warnings.length+' advertencia(s)</span>'+
       (r.issues.length?'<details><summary>Ver problemas</summary><ul>'+r.issues.slice(0,50).map(x=>'<li>'+esc(x)+'</li>').join("")+'</ul></details>':'')+
       (r.warnings.length?'<details><summary>Ver advertencias</summary><ul>'+r.warnings.slice(0,50).map(x=>'<li>'+esc(x)+'</li>').join("")+'</ul></details>':'')+
       (!r.issues.length?'<em>Las relaciones estructurales principales son coherentes.</em>':'');
+  };
+
+  if($("repairIds")) $("repairIds").onclick=async()=>{
+    const seq=idSequenceProblems();
+    if(!seq.length){toast("Los IDs ya son correlativos");return;}
+    const ok=confirm("Esto hará un reindexado único y correlativo de MR-P, MR-C y MR-D. Se conservará cada ID anterior como legacy_id y también se migrarán las imágenes. ¿Continuar?");
+    if(!ok)return;
+    const result=await repairIdSequences();
+    toast("IDs normalizados: "+result.pieces+" piezas, "+result.fields+" campos, "+result.drawings+" dibujos");
+    if($("auditSummary")) $("auditSummary").innerHTML='<em>Reindexado completado. Ejecutá “Auditar base” para verificar.</em>';
   };
 
   // Procedural jungle ambience, user initiated
