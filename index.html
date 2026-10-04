@@ -163,7 +163,7 @@
         <article><h3>Matriz SPSS</h3><p>Una fila por campo decorativo, la unidad de análisis, con variables de pieza y técnicas convertidas a 0/1.</p><button id="exportSpss" class="primary">Descargar matriz_spss.csv</button></article>
         <article><h3>Diccionario</h3><p>Descripción de variables y codificación básica para documentar los análisis.</p><button id="exportDictionary" class="secondary">Descargar diccionario.csv</button></article>
         <article><h3>Respaldo</h3><p>Guarda todos los datos textuales en JSON. Las imágenes permanecen en este navegador.</p><button id="exportJson" class="secondary">Exportar JSON</button><label class="import-label">Importar JSON<input id="importJson" type="file" accept=".json,application/json"></label></article>
-        <article><h3>Auditoría de integridad</h3><p>Revisa IDs, relaciones pieza–campo–dibujo, sectores incompatibles y registros incompletos.</p><button id="runAudit" class="secondary">Auditar base</button><div id="auditSummary" class="audit-summary"></div></article>
+        <article><h3>Auditoría de integridad</h3><p>Revisa IDs, relaciones pieza–campo–dibujo, sectores incompatibles y registros incompletos.</p><div class="audit-actions"><button id="runAudit" class="secondary">Auditar base</button><button id="repairIds" class="secondary">Corregir secuencia de IDs</button></div><div id="auditSummary" class="audit-summary"></div></article>
         <article><h3>Estado de persistencia</h3><p>Esta versión guarda los datos y archivos en el navegador. El repositorio contiene la aplicación y la estructura maestra. La sincronización directa de ediciones con GitHub será la siguiente etapa.</p></article>
       </div>
     </section>
