@@ -348,10 +348,41 @@
     if(!filtered.length) grid.innerHTML='<p style="color:var(--muted)">No hay registros que coincidan con los filtros.</p>';
   }
 
+  async function deleteDrawingRecord(designId){
+    const d=data.designs.find(x=>x.id===designId);
+    if(!d)return false;
+    const field=data.fields.find(f=>f.id===d.field_id);
+    if(field?.design_id===designId) field.design_id="";
+    await deleteFile("design:"+designId);
+    data.designs=data.designs.filter(x=>x.id!==designId);
+    if(selectedDesignId===designId) selectedDesignId=data.designs[0]?.id||"";
+    saveData();
+    renderDesignList();
+    renderCatalog();
+    refreshStats();
+    return true;
+  }
+
+  function armDeleteDrawingButton(btn,designId,onDeleted){
+    if(btn.dataset.armed==="1")return;
+    btn.dataset.armed="1";
+    const wrap=document.createElement("span");
+    wrap.className="confirm-delete-inline";
+    wrap.innerHTML='<span>¿Seguro?</span><button type="button" class="danger-confirm-yes">Sí</button><button type="button" class="mini danger-confirm-no">No</button>';
+    btn.replaceWith(wrap);
+    wrap.querySelector(".danger-confirm-no").onclick=()=>onDeleted?.(false);
+    wrap.querySelector(".danger-confirm-yes").onclick=async()=>{
+      await deleteDrawingRecord(designId);
+      toast("Dibujo "+designId+" eliminado");
+      onDeleted?.(true);
+    };
+  }
+
   async function openPieceDetail(id){
     const p=data.pieces.find(x=>x.id===id); if(!p)return;
-    const ds=data.designs.filter(d=>d.piece_id===id);
     const fs=data.fields.filter(f=>f.piece_id===id);
+    const validFieldIds=new Set(fs.map(f=>f.id));
+    const ds=data.designs.filter(d=>d.field_id && validFieldIds.has(d.field_id));
     const u=await mediaUrl("piece:"+id);
 
     const fieldCards=fs.map((f,index)=>{
@@ -373,12 +404,13 @@
           <div class="linked-design-actions">
             <button type="button" class="mini design-view-btn" data-design-id="${esc(d.id)}">Ver ficha</button>
             <label class="design-upload-btn">${du?"Reemplazar dibujo":"Adjuntar dibujo"}<input type="file" accept="image/*,.svg" data-design-upload="${esc(d.id)}"></label>
+            <button type="button" class="danger-link delete-design-record" data-delete-design-record="${esc(d.id)}">Borrar registro</button>
           </div>
         </div>
       </article>`);
     }
 
-    $("dialogContent").innerHTML=`<div class="detail-grid"><div><div class="detail-media">${u?'<img src="'+u+'">':'<span class="placeholder">'+esc(id)+'</span>'}</div>${p.fotogrametria_url?'<iframe class="embed-frame" src="'+esc(p.fotogrametria_url)+'" allowfullscreen loading="lazy"></iframe>':''}</div><div class="detail-data"><span class="card-id">${esc(id)}</span><h2>${esc(p.forma||"Pieza sin clasificar")}</h2><dl class="detail-list"><dt>Sigla</dt><dd>${esc(p.sigla||"—")}</dd><dt>Sitio</dt><dd>${esc(p.sitio||"—")}</dd><dt>Colección</dt><dd>${esc(p.coleccion||"—")}</dd><dt>Integridad</dt><dd>${esc(p.integridad||"—")}</dd><dt>Publicación</dt><dd>${esc(p.publicacion||"—")}</dd><dt>Página</dt><dd>${esc(p.pagina||"—")}</dd><dt>Observaciones</dt><dd>${esc(p.observaciones||"—")}</dd><dt>Campos decorados</dt><dd>${fs.length}</dd><dt>Clase(s) de simetría</dt><dd>${esc([...new Set(fs.map(f=>f.clase_simetria).filter(Boolean))].join(", ")||"—")}</dd></dl><div class="field-summary-section"><h3>Campos / sectores decorados</h3><p class="design-list-help">Cada campo es una unidad fundamental de la muestra de referencia y puede compartir un mismo dibujo con otros campos.</p>${fieldCards.length?fieldCards.join(""):'<p>Sin campos decorativos registrados.</p>'}</div><div class="design-list-detail"><h3>Dibujos / diseños vinculados</h3><p class="design-list-help">Cada diseño puede adjuntar o reemplazar su dibujo directamente desde esta ficha.</p>${ds.length?designCards.join(""):'<p>Sin diseños vinculados.</p>'}</div></div></div>`;
+    $("dialogContent").innerHTML=`<div class="detail-grid"><div><div class="detail-media">${u?'<img src="'+u+'">':'<span class="placeholder">'+esc(id)+'</span>'}</div>${p.fotogrametria_url?'<iframe class="embed-frame" src="'+esc(p.fotogrametria_url)+'" allowfullscreen loading="lazy"></iframe>':''}</div><div class="detail-data"><span class="card-id">${esc(id)}</span><h2>${esc(p.forma||"Pieza sin clasificar")}</h2><dl class="detail-list"><dt>Sigla</dt><dd>${esc(p.sigla||"—")}</dd><dt>Sitio</dt><dd>${esc(p.sitio||"—")}</dd><dt>Colección</dt><dd>${esc(p.coleccion||"—")}</dd><dt>Integridad</dt><dd>${esc(p.integridad||"—")}</dd><dt>Publicación</dt><dd>${esc(p.publicacion||"—")}</dd><dt>Página</dt><dd>${esc(p.pagina||"—")}</dd><dt>Observaciones</dt><dd>${esc(p.observaciones||"—")}</dd><dt>Campos decorados</dt><dd>${fs.length}</dd><dt>Clase(s) de simetría</dt><dd>${esc([...new Set(fs.map(f=>f.clase_simetria).filter(Boolean))].join(", ")||"—")}</dd></dl><div class="field-summary-section"><h3>Campos / sectores decorados</h3><p class="design-list-help">Cada campo es una unidad fundamental de la muestra de referencia y posee su propio dibujo de referencia.</p>${fieldCards.length?fieldCards.join(""):'<p>Sin campos decorativos registrados.</p>'}</div><div class="design-list-detail"><h3>Dibujos / diseños vinculados</h3><p class="design-list-help">Cada diseño puede adjuntar o reemplazar su dibujo directamente desde esta ficha.</p>${ds.length?designCards.join(""):'<p>Sin diseños vinculados.</p>'}</div></div></div>`;
 
     $("dialogContent").querySelectorAll("[data-modal-paste-design]").forEach(zone=>{
       const designId=zone.dataset.modalPasteDesign;
@@ -406,6 +438,14 @@
 
     $("dialogContent").querySelectorAll(".design-view-btn").forEach(btn=>{
       btn.addEventListener("click",()=>openDesignDetail(btn.dataset.designId));
+    });
+    $("dialogContent").querySelectorAll("[data-delete-design-record]").forEach(btn=>{
+      btn.addEventListener("click",()=>{
+        const designId=btn.dataset.deleteDesignRecord;
+        armDeleteDrawingButton(btn,designId,async deleted=>{
+          await openPieceDetail(id);
+        });
+      });
     });
 
     if(!$("detailDialog").open) $("detailDialog").showModal();
@@ -629,8 +669,9 @@
 
   async function renderPieceLinkedDesignsEditor(pieceId){
     const box=$("pieceLinkedDesignsEditor"); if(!box)return;
-    const ds=data.designs.filter(d=>d.piece_id===pieceId);
-    if(!ds.length){box.innerHTML='<p class="design-list-help">Esta pieza todavía no tiene diseños vinculados.</p>';return;}
+    const validFieldIds=new Set(data.fields.filter(f=>f.piece_id===pieceId).map(f=>f.id));
+    const ds=data.designs.filter(d=>d.field_id && validFieldIds.has(d.field_id));
+    if(!ds.length){box.innerHTML='<p class="design-list-help">Esta pieza todavía no tiene dibujos vinculados a campos decorativos.</p>';return;}
     box.innerHTML="";
     for(const d of ds){
       const file=await getFile("design:"+d.id);
@@ -644,8 +685,9 @@
           <small>${(()=>{const f=data.fields.find(x=>x.id===d.field_id);const es=(f?.esquemas&&f.esquemas.length)?f.esquemas.join(" | "):(d.esquema||"esquema pendiente");const si=f?.clase_simetria||d.clase_simetria||"simetría pendiente";return esc(es+" · "+si);})()}</small>
           <div class="piece-linked-design-actions">
             <label class="design-upload-btn">${file?"Reemplazar dibujo":"Adjuntar dibujo"}<input type="file" accept="image/*,.svg" data-editor-design-upload="${esc(d.id)}"></label>
-            <button type="button" class="mini" data-edit-design="${esc(d.id)}">Editar datos del diseño</button>
-            ${file?'<button type="button" class="danger-link" data-remove-design-image="'+esc(d.id)+'">Quitar dibujo</button>':''}
+            <button type="button" class="mini" data-edit-design="${esc(d.id)}">Editar datos del dibujo</button>
+            ${file?'<button type="button" class="danger-link" data-remove-design-image="'+esc(d.id)+'">Quitar imagen</button>':''}
+            <button type="button" class="danger-link" data-delete-design-record="${esc(d.id)}">Borrar registro</button>
           </div>
         </div>`;
       box.appendChild(row);
@@ -684,6 +726,15 @@
         selectedDesignId=btn.dataset.editDesign;
         $("editDesignTab").click();
         loadDesignForm(selectedDesignId);
+      });
+    });
+    box.querySelectorAll("[data-delete-design-record]").forEach(btn=>{
+      btn.addEventListener("click",()=>{
+        const designId=btn.dataset.deleteDesignRecord;
+        armDeleteDrawingButton(btn,designId,async deleted=>{
+          await renderPieceLinkedDesignsEditor(pieceId);
+          renderPieceFieldsEditor(pieceId);
+        });
       });
     });
   }
