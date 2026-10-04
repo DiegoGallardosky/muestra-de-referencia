@@ -56,6 +56,7 @@ window.MR_SEED = (() => {
       id,
       ref_original: originalRef(n),
       piece_id: pieceForDesign[id] || "",
+      field_id:"",
       campo_decorativo:"",
       campo_otro:"",
       tecnicas:[],
@@ -70,8 +71,10 @@ window.MR_SEED = (() => {
   });
 
   return {
-    version:"0.1.0",
+    version:"0.2.0",
+    schema_version:2,
     pieces,
+    fields:[],
     designs,
     options:{
       formas:["Escudilla","Botella","Cántaro ovoide","Olla","Cuenco-Puco","Vaso","Vaso anular","Pipa","Urna","Otro"],
