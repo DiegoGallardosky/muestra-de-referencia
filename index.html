@@ -35,8 +35,8 @@
           </div>
           <div class="stats">
             <div><strong id="statPieces">30</strong><span>Piezas</span></div>
-            <div><strong id="statDesigns">74</strong><span>Diseños</span></div>
-            <div><strong id="statLinked">—</strong><span>Diseños vinculados</span></div>
+            <div><strong id="statFields">0</strong><span>Campos</span></div>
+            <div><strong id="statDesigns">74</strong><span>Dibujos</span></div>
           </div>
         </div>
         <div class="hero-symbol" aria-label="Símbolo provisional San Francisco">
@@ -48,9 +48,9 @@
         </div>
       </div>
       <div class="intro-grid">
-        <article><span>01</span><h3>Pieza</h3><p>Cada pieza completa o semicompleta posee un ID único MR-Pxxxx independiente de la sigla institucional.</p></article>
-        <article><span>02</span><h3>Diseño</h3><p>Cada dibujo o diseño de Inkscape posee un ID único MR-Dxxxx y puede vincularse con una pieza.</p></article>
-        <article><span>03</span><h3>Análisis</h3><p>La estructura de datos se prepara para exportación limpia y análisis posteriores en SPSS.</p></article>
+        <article><span>01</span><h3>Pieza</h3><p>Cada pieza completa o semicompleta posee un ID único MR-Pxxxx.</p></article>
+        <article><span>02</span><h3>Campo decorativo</h3><p>Cada campo posee un ID MR-Cxxxx y constituye la unidad de análisis. Su sector se codifica según la forma de la pieza.</p></article>
+        <article><span>03</span><h3>Dibujo</h3><p>Cada MR-Dxxxx es la representación gráfica de un único campo decorativo.</p></article>
       </div>
     </section>
 
@@ -59,7 +59,7 @@
         <div><span class="eyebrow">CATÁLOGO</span><h2>Ver muestra</h2></div>
         <div class="segmented">
           <button id="showPiecesBtn" class="active">Piezas</button>
-          <button id="showDesignsBtn">Diseños</button>
+          <button id="showDesignsBtn">Dibujos</button>
         </div>
       </div>
       <div class="filters">
@@ -75,7 +75,7 @@
         <div><span class="eyebrow">GESTIÓN</span><h2>Editar muestra</h2><p>Los ID principales están bloqueados para evitar duplicaciones.</p></div>
         <div class="segmented">
           <button id="editPieceTab" class="active">Piezas</button>
-          <button id="editDesignTab">Diseños</button>
+          <button id="editDesignTab">Dibujos</button>
         </div>
       </div>
 
@@ -115,7 +115,7 @@
             </section>
             <section class="span-2 piece-design-editor">
               <div class="piece-design-editor-head">
-                <div><strong>Dibujos de los diseños vinculados</strong><small>Adjuntá o reemplazá el dibujo de cada diseño asociado a esta pieza.</small></div>
+                <div><strong>Dibujos de los campos registrados</strong><small>Cada campo decorativo puede tener un único dibujo de referencia MR-Dxxxx.</small></div>
               </div>
               <div id="pieceLinkedDesignsEditor" class="piece-linked-designs-editor"></div>
             </section>
@@ -129,17 +129,18 @@
           <div id="designList" class="record-list"></div>
         </aside>
         <form id="designForm" class="editor-card">
-          <div class="form-title"><div><span class="record-type">DISEÑO</span><h3 id="designFormTitle">MR-D0001</h3></div><button type="submit" class="primary">Guardar cambios</button></div>
+          <div class="form-title"><div><span class="record-type">DIBUJO</span><h3 id="designFormTitle">MR-D0001</h3></div><button type="submit" class="primary">Guardar cambios</button></div>
           <div class="form-grid">
             <label>ID de diseño<input id="d_id" readonly></label>
             <label>Referencia original<input id="d_ref"></label>
             <label>Pieza vinculada<select id="d_piece"></select></label>
             <label>Campo decorativo<select id="d_field"></select><small>Cada dibujo representa un único campo decorativo.</small></label>
             <label id="d_campo_legacy_wrap" class="hidden">Campo anterior<input id="d_campo_legacy" readonly></label>
+            <div class="span-2 analysis-note"><strong>Variables del campo decorativo</strong><span>Técnica, esquema(s), simetría y colores pertenecen al campo; el dibujo es su representación gráfica.</span></div>
             <label>Clase de simetría<select id="d_simetria"></select></label>
             <fieldset class="span-2"><legend>Técnica(s)</legend><div id="techniqueChecks" class="check-grid"></div></fieldset>
             <label id="d_tecnica_otro_wrap" class="span-2 hidden">Otra técnica<input id="d_tecnica_otro"></label>
-            <label class="span-2">Esquema <small>Campo abierto: se construye durante el análisis.</small><input id="d_esquema"></label>
+            <label class="span-2">Esquema(s) <small>Puede haber más de uno por campo. Separalos con el signo |.</small><input id="d_esquema"></label>
             <label class="span-2">Colores <small>Descripción libre.</small><input id="d_colores" placeholder="Ej.: rojo, negro sobre ante…"></label>
             <label class="span-2">Observaciones<textarea id="d_observaciones" rows="4"></textarea></label>
             <div class="span-2 media-field">
@@ -157,10 +158,12 @@
       <div class="section-head"><div><span class="eyebrow">ANÁLISIS</span><h2>SPSS / Exportar</h2><p>La exportación mantiene separadas las unidades pieza y diseño y genera una matriz plana para análisis.</p></div></div>
       <div class="export-grid">
         <article><h3>Piezas</h3><p>Una fila por pieza. Útil para análisis morfológicos, contextuales y de procedencia.</p><button id="exportPieces" class="primary">Descargar piezas.csv</button></article>
-        <article><h3>Diseños</h3><p>Una fila por diseño, vinculada mediante ID_PIEZA.</p><button id="exportDesigns" class="primary">Descargar diseños.csv</button></article>
+        <article><h3>Campos decorativos</h3><p>Una fila por campo decorativo. Es la tabla central de la muestra de referencia.</p><button id="exportFields" class="primary">Descargar campos.csv</button></article>
+        <article><h3>Dibujos</h3><p>Una fila por dibujo MR-Dxxxx, vinculado a un único campo decorativo.</p><button id="exportDesigns" class="primary">Descargar dibujos.csv</button></article>
         <article><h3>Matriz SPSS</h3><p>Una fila por campo decorativo, la unidad de análisis, con variables de pieza y técnicas convertidas a 0/1.</p><button id="exportSpss" class="primary">Descargar matriz_spss.csv</button></article>
         <article><h3>Diccionario</h3><p>Descripción de variables y codificación básica para documentar los análisis.</p><button id="exportDictionary" class="secondary">Descargar diccionario.csv</button></article>
         <article><h3>Respaldo</h3><p>Guarda todos los datos textuales en JSON. Las imágenes permanecen en este navegador.</p><button id="exportJson" class="secondary">Exportar JSON</button><label class="import-label">Importar JSON<input id="importJson" type="file" accept=".json,application/json"></label></article>
+        <article><h3>Auditoría de integridad</h3><p>Revisa IDs, relaciones pieza–campo–dibujo, sectores incompatibles y registros incompletos.</p><button id="runAudit" class="secondary">Auditar base</button><div id="auditSummary" class="audit-summary"></div></article>
         <article><h3>Estado de persistencia</h3><p>Esta versión guarda los datos y archivos en el navegador. El repositorio contiene la aplicación y la estructura maestra. La sincronización directa de ediciones con GitHub será la siguiente etapa.</p></article>
       </div>
     </section>
