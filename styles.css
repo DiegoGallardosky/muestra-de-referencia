@@ -26,3 +26,9 @@ dialog{width:min(980px,92vw);max-height:88vh;border:1px solid var(--line);border
 .piece-linked-design-meta{min-width:0;display:flex;flex-direction:column;justify-content:center}.piece-linked-design-meta strong{color:var(--lime)}.piece-linked-design-meta small{color:var(--muted);margin-top:4px}
 .piece-linked-design-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
 @media(max-width:700px){.piece-linked-design-row{grid-template-columns:1fr}.piece-linked-design-thumb img{height:180px}}
+
+.paste-target{position:relative;cursor:pointer;outline:none}
+.paste-target::after{content:"Ctrl+V";position:absolute;right:10px;bottom:10px;padding:4px 7px;border-radius:7px;background:rgba(13,23,19,.84);color:var(--lime);font-size:10px;font-weight:900;letter-spacing:.06em;opacity:.72;pointer-events:none}
+.paste-target:focus{box-shadow:0 0 0 3px rgba(194,215,137,.18);border-color:rgba(194,215,137,.55)}
+.paste-target:focus::after{opacity:1}
+.paste-target.paste-saving{opacity:.65}
