@@ -71,8 +71,8 @@ window.MR_SEED = (() => {
   });
 
   return {
-    version:"0.5.0",
-    schema_version:5,
+    version:"0.6.0",
+    schema_version:6,
     pieces,
     fields:[],
     designs,
