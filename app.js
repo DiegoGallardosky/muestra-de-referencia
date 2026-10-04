@@ -32,6 +32,17 @@
     d.pieces=Array.isArray(d.pieces)?d.pieces:[];
     d.designs=Array.isArray(d.designs)?d.designs:[];
     d.fields=Array.isArray(d.fields)?d.fields:[];
+    // Mantener los registros cargados, pero actualizar catálogos/opciones del esquema.
+    // Esto evita que una base guardada en una versión anterior quede sin los campos
+    // predeterminados incorporados posteriormente.
+    const savedOptions=d.options||{};
+    d.options={
+      ...deepClone(SEED.options||{}),
+      ...savedOptions,
+      campoCatalogoPorForma:deepClone(SEED.options?.campoCatalogoPorForma||{}),
+      camposPorForma:deepClone(SEED.options?.camposPorForma||{}),
+      camposGenerales:deepClone(SEED.options?.camposGenerales||[])
+    };
 
     d.fields.forEach(f=>{
       if(!("nombre" in f)) f.nombre=f.campo_decorativo||"";
@@ -61,7 +72,7 @@
       }
       des.field_id=f.id;
     });
-    d.schema_version=2;
+    d.schema_version=3;
     return d;
   }
 
@@ -453,7 +464,10 @@
       const options=["",...allowed].filter((v,i,a)=>a.indexOf(v)===i).map(v=>'<option value="'+esc(v)+'" '+(v===f.nombre?'selected':'')+'>'+(v||"Seleccionar…")+'</option>').join("");
       const linked=data.designs.filter(d=>d.field_id===f.id);
       row.innerHTML=`
-        <div class="field-row-head"><strong>${esc(f.id)}${f.catalog_code?" · "+esc(f.catalog_code):""}</strong><span>${linked.length} diseño(s) vinculado(s)</span></div>
+        <div class="field-row-head">
+          <div><strong>${esc(f.id)}${f.catalog_code?" · "+esc(f.catalog_code):""}</strong>${linked.length?'<small class="field-linked-ids">'+linked.map(d=>esc(d.id)).join(" · ")+'</small>':""}</div>
+          <div class="field-row-head-actions"><span>${linked.length} diseño(s) vinculado(s)</span><button type="button" class="mini" data-create-design-for-field="${esc(f.id)}">+ Crear diseño</button></div>
+        </div>
         <div class="field-row-grid">
           <label>Sector / campo<select data-field-name="${esc(f.id)}">${options}</select></label>
           <label class="${f.nombre==="Otro"?"":"hidden"}" data-field-other-wrap="${esc(f.id)}">Otro campo<input data-field-other="${esc(f.id)}" value="${esc(f.nombre_otro||"")}"></label>
@@ -481,6 +495,33 @@
     box.querySelectorAll("[data-field-notes]").forEach(el=>el.addEventListener("change",()=>{
       const f=data.fields.find(x=>x.id===el.dataset.fieldNotes);if(!f)return;
       f.observaciones=el.value.trim();f.updated_at=nowIso();saveData();
+    }));
+    box.querySelectorAll("[data-create-design-for-field]").forEach(btn=>btn.addEventListener("click",()=>{
+      const fieldId=btn.dataset.createDesignForField;
+      const f=data.fields.find(x=>x.id===fieldId);if(!f)return;
+      const id=nextId("MR-D",data.designs);
+      data.designs.push({
+        id,
+        ref_original:"",
+        piece_id:pieceId,
+        field_id:f.id,
+        campo_decorativo:f.nombre||"",
+        campo_otro:f.nombre_otro||"",
+        tecnicas:[],
+        tecnica_otro:"",
+        esquema:"",
+        clase_simetria:"",
+        colores:"",
+        observaciones:"",
+        design_file_name:"",
+        updated_at:nowIso()
+      });
+      selectedDesignId=id;
+      saveData();
+      renderDesignList();
+      renderPieceFieldsEditor(pieceId);
+      renderPieceLinkedDesignsEditor(pieceId);
+      toast("Diseño creado y vinculado: "+id);
     }));
     box.querySelectorAll("[data-field-delete]").forEach(btn=>btn.addEventListener("click",()=>{
       const id=btn.dataset.fieldDelete;
