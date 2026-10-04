@@ -698,6 +698,7 @@
     if(!selectedField){toast("Seleccioná un campo decorativo");return;}
     const duplicate=data.designs.find(x=>x.id!==d.id && x.field_id===selectedField.id);
     if(duplicate){toast("Ese campo ya tiene el dibujo "+duplicate.id);return;}
+    const previousFieldId=d.field_id||"";
     const techniques=[...document.querySelectorAll('#techniqueChecks input:checked')].map(x=>x.value);
     const schemes=$("d_esquema").value.split("|").map(x=>x.trim()).filter(Boolean);
     Object.assign(selectedField,{
@@ -711,7 +712,7 @@
     });
     Object.assign(d,{
       ref_original:$("d_ref").value.trim(),
-      piece_id:$("d_piece").value,
+      piece_id:selectedField.piece_id,
       field_id:selectedField.id,
       campo_decorativo:selectedField.nombre||"",
       campo_otro:selectedField.nombre_otro||"",
@@ -723,6 +724,10 @@
       observaciones:$("d_observaciones").value.trim(),
       updated_at:nowIso()
     });
+    if(previousFieldId && previousFieldId!==selectedField.id){
+      const previousField=data.fields.find(f=>f.id===previousFieldId);
+      if(previousField?.design_id===d.id) previousField.design_id="";
+    }
     const f=$("d_image").files[0];if(f){await putFile("design:"+d.id,f);d.design_file_name=f.name;$("d_image").value="";}
     saveData();renderDesignList();await previewFile("design:"+d.id,"designImagePreview");toast("Diseño guardado");
   };
