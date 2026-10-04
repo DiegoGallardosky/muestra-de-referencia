@@ -138,3 +138,13 @@ dialog{
 .design-field-choice strong{font-size:12px}
 .design-field-choice small{grid-column:1/-1;color:var(--muted)}
 .design-field-choice:has(input:checked){border-color:rgba(194,215,137,.48);background:rgba(194,215,137,.08)}
+
+.analysis-note{display:flex;gap:12px;align-items:flex-start;padding:12px 14px;border:1px solid rgba(194,215,137,.2);border-radius:10px;background:rgba(194,215,137,.05)}
+.analysis-note strong{white-space:nowrap;color:var(--lime)}
+.analysis-note span{color:var(--muted);font-size:12px;line-height:1.45}
+.audit-summary{display:grid;gap:8px;margin-top:14px}
+.audit-summary strong{color:var(--white)}
+.audit-summary span,.audit-summary em{color:var(--muted);font-size:13px}
+.audit-summary details{border-top:1px solid var(--line);padding-top:8px}
+.audit-summary summary{cursor:pointer;color:var(--lime);font-weight:800}
+.audit-summary ul{margin:8px 0 0;padding-left:20px;color:var(--muted);font-size:12px;line-height:1.45}
