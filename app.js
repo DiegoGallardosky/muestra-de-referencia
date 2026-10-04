@@ -16,12 +16,54 @@
   const nowIso = () => new Date().toISOString();
 
   function deepClone(x){ return JSON.parse(JSON.stringify(x)); }
+
+  function migrateData(raw){
+    const d=raw||{};
+    d.pieces=Array.isArray(d.pieces)?d.pieces:[];
+    d.designs=Array.isArray(d.designs)?d.designs:[];
+    d.fields=Array.isArray(d.fields)?d.fields:[];
+
+    d.fields.forEach(f=>{
+      if(!("nombre" in f)) f.nombre=f.campo_decorativo||"";
+      if(!("nombre_otro" in f)) f.nombre_otro=f.campo_otro||"";
+      if(!("observaciones" in f)) f.observaciones="";
+    });
+
+    const nextFieldId=()=>{
+      const max=Math.max(0,...d.fields.map(f=>parseInt(String(f.id||"").replace("MR-C",""),10)||0));
+      return "MR-C"+String(max+1).padStart(4,"0");
+    };
+
+    // Migración no destructiva: los campos que ya estaban escritos dentro de
+    // los diseños se convierten en entidades de campo decorativo, sin borrar
+    // ninguna variable anterior.
+    const byKey=new Map();
+    d.fields.forEach(f=>byKey.set([f.piece_id,f.nombre,f.nombre_otro].join("||"),f));
+    d.designs.forEach(des=>{
+      if(!("field_id" in des)) des.field_id="";
+      if(des.field_id || !des.piece_id || !des.campo_decorativo) return;
+      const key=[des.piece_id,des.campo_decorativo,des.campo_otro||""].join("||");
+      let f=byKey.get(key);
+      if(!f){
+        f={id:nextFieldId(),piece_id:des.piece_id,nombre:des.campo_decorativo,nombre_otro:des.campo_otro||"",observaciones:"",updated_at:des.updated_at||""};
+        d.fields.push(f);byKey.set(key,f);
+      }
+      des.field_id=f.id;
+    });
+    d.schema_version=2;
+    return d;
+  }
+
   function loadData(){
     try {
       const saved = JSON.parse(localStorage.getItem(STORE_KEY));
-      if (saved?.pieces && saved?.designs) return saved;
+      if (saved?.pieces && saved?.designs){
+        const migrated=migrateData(saved);
+        localStorage.setItem(STORE_KEY,JSON.stringify(migrated));
+        return migrated;
+      }
     } catch(e){}
-    const d = deepClone(SEED);
+    const d = migrateData(deepClone(SEED));
     localStorage.setItem(STORE_KEY, JSON.stringify(d));
     return d;
   }
@@ -298,17 +340,15 @@
 
   function setOtherVisibility(){
     $("p_forma_otro_wrap").classList.toggle("hidden",$("p_forma").value!=="Otro");
-    $("d_campo_otro_wrap").classList.toggle("hidden",$("d_campo").value!=="Otro");
     const techOther=[...document.querySelectorAll('#techniqueChecks input:checked')].some(x=>x.value==="Otro");
     $("d_tecnica_otro_wrap").classList.toggle("hidden",!techOther);
   }
-  $("p_forma").onchange=()=>{setOtherVisibility();};
-  $("d_campo").onchange=setOtherVisibility;
+  $("p_forma").onchange=()=>{setOtherVisibility();renderPieceFieldsEditor(selectedPieceId);};
 
   function loadPieceForm(id){
     const p=data.pieces.find(x=>x.id===id); if(!p)return; selectedPieceId=id;
     $("pieceFormTitle").textContent=p.id;$("p_id").value=p.id;$("p_caja").value=p.caja||"";$("p_sigla").value=p.sigla||"";$("p_sitio").value=p.sitio||"";$("p_coleccion").value=p.coleccion||"";$("p_publicacion").value=p.publicacion||"";$("p_pagina").value=p.pagina||"";$("p_forma").value=p.forma||"";$("p_forma_otro").value=p.forma_otro||"";$("p_integridad").value=p.integridad||"";$("p_fotogrametria").value=p.fotogrametria_url||"";$("p_observaciones").value=p.observaciones||"";
-    setOtherVisibility();previewFile("piece:"+id,"piecePhotoPreview");renderPieceList();renderPieceLinkedDesignsEditor(id);
+    setOtherVisibility();previewFile("piece:"+id,"piecePhotoPreview");renderPieceList();renderPieceFieldsEditor(id);renderPieceLinkedDesignsEditor(id);
     bindPasteZone($("piecePhotoPreview"),id+"-foto",async file=>{
       await putFile("piece:"+id,file);
       p.photo_file_name=file.name;p.updated_at=nowIso();saveData();
@@ -316,6 +356,84 @@
       toast("Fotografía pegada en "+id);
     });
   }
+  function fieldLabel(f){
+    return f ? (f.nombre==="Otro"?(f.nombre_otro||"Otro"):(f.nombre||"Campo sin definir")) : "Campo sin definir";
+  }
+
+  function fieldOptionsForPiece(pieceId){
+    const p=data.pieces.find(x=>x.id===pieceId);
+    return (p?.forma && data.options.camposPorForma[p.forma]) || data.options.camposGenerales || ["Otro"];
+  }
+
+  function refreshDesignFieldSelect(pieceId,current=""){
+    const el=$("d_field"); if(!el)return;
+    const fields=data.fields.filter(f=>f.piece_id===pieceId);
+    el.innerHTML="";
+    const blank=document.createElement("option");
+    blank.value=""; blank.textContent=fields.length?"Seleccionar campo…":"Primero agregá un campo decorativo";
+    el.appendChild(blank);
+    fields.forEach(f=>{
+      const o=document.createElement("option");
+      o.value=f.id;o.textContent=f.id+" · "+fieldLabel(f);el.appendChild(o);
+    });
+    el.value=fields.some(f=>f.id===current)?current:"";
+  }
+
+  async function renderPieceFieldsEditor(pieceId){
+    const box=$("pieceFieldsEditor"); if(!box)return;
+    const fields=data.fields.filter(f=>f.piece_id===pieceId);
+    box.innerHTML="";
+    if(!fields.length){
+      box.innerHTML='<p class="design-list-help">Todavía no hay campos decorativos registrados para esta pieza.</p>';
+      return;
+    }
+    const allowed=fieldOptionsForPiece(pieceId);
+    fields.forEach(f=>{
+      const row=document.createElement("article");row.className="field-row";
+      const options=["",...allowed].filter((v,i,a)=>a.indexOf(v)===i).map(v=>'<option value="'+esc(v)+'" '+(v===f.nombre?'selected':'')+'>'+(v||"Seleccionar…")+'</option>').join("");
+      const linked=data.designs.filter(d=>d.field_id===f.id);
+      row.innerHTML=`
+        <div class="field-row-head"><strong>${esc(f.id)}</strong><span>${linked.length} diseño(s) vinculado(s)</span></div>
+        <div class="field-row-grid">
+          <label>Sector / campo<select data-field-name="${esc(f.id)}">${options}</select></label>
+          <label class="${f.nombre==="Otro"?"":"hidden"}" data-field-other-wrap="${esc(f.id)}">Otro campo<input data-field-other="${esc(f.id)}" value="${esc(f.nombre_otro||"")}"></label>
+          <label class="field-notes">Observaciones<input data-field-notes="${esc(f.id)}" value="${esc(f.observaciones||"")}"></label>
+          <button type="button" class="danger-link field-delete" data-field-delete="${esc(f.id)}">Eliminar campo</button>
+        </div>`;
+      box.appendChild(row);
+    });
+
+    box.querySelectorAll("[data-field-name]").forEach(el=>el.addEventListener("change",()=>{
+      const f=data.fields.find(x=>x.id===el.dataset.fieldName);if(!f)return;
+      f.nombre=el.value;if(f.nombre!=="Otro")f.nombre_otro="";f.updated_at=nowIso();saveData();
+      // mantener copias desnormalizadas para compatibilidad con exportaciones previas
+      data.designs.filter(d=>d.field_id===f.id).forEach(d=>{d.campo_decorativo=f.nombre;d.campo_otro=f.nombre_otro||"";});
+      saveData();renderPieceFieldsEditor(pieceId);
+    }));
+    box.querySelectorAll("[data-field-other]").forEach(el=>el.addEventListener("change",()=>{
+      const f=data.fields.find(x=>x.id===el.dataset.fieldOther);if(!f)return;
+      f.nombre_otro=el.value.trim();f.updated_at=nowIso();
+      data.designs.filter(d=>d.field_id===f.id).forEach(d=>{d.campo_decorativo=f.nombre;d.campo_otro=f.nombre_otro||"";});
+      saveData();
+    }));
+    box.querySelectorAll("[data-field-notes]").forEach(el=>el.addEventListener("change",()=>{
+      const f=data.fields.find(x=>x.id===el.dataset.fieldNotes);if(!f)return;
+      f.observaciones=el.value.trim();f.updated_at=nowIso();saveData();
+    }));
+    box.querySelectorAll("[data-field-delete]").forEach(btn=>btn.addEventListener("click",()=>{
+      const id=btn.dataset.fieldDelete;
+      if(data.designs.some(d=>d.field_id===id)){toast("No se puede eliminar: hay diseños vinculados");return;}
+      data.fields=data.fields.filter(f=>f.id!==id);saveData();renderPieceFieldsEditor(pieceId);toast("Campo decorativo eliminado");
+    }));
+  }
+
+  $("addFieldBtn").onclick=()=>{
+    const pieceId=selectedPieceId;if(!pieceId)return;
+    const id=nextId("MR-C",data.fields);
+    data.fields.push({id,piece_id:pieceId,nombre:"",nombre_otro:"",observaciones:"",updated_at:nowIso()});
+    saveData();renderPieceFieldsEditor(pieceId);toast("Nuevo campo creado: "+id);
+  };
+
   async function renderPieceLinkedDesignsEditor(pieceId){
     const box=$("pieceLinkedDesignsEditor"); if(!box)return;
     const ds=data.designs.filter(d=>d.piece_id===pieceId);
@@ -396,14 +514,10 @@
     const box=$("techniqueChecks");box.innerHTML="";
     data.options.tecnicas.forEach(t=>{const lab=document.createElement("label");lab.innerHTML=`<input type="checkbox" value="${esc(t)}"> ${esc(t)}`;const input=lab.querySelector("input");input.checked=selected.includes(t);input.onchange=setOtherVisibility;box.appendChild(lab);});
   }
-  function refreshCampoOptions(pieceId,current=""){
-    const p=data.pieces.find(x=>x.id===pieceId);const forma=p?.forma;
-    const vals=(forma&&data.options.camposPorForma[forma])||data.options.camposGenerales;
-    fillSelect($("d_campo"),vals,"Seleccionar…");$("d_campo").value=vals.includes(current)?current:"";
-  }
+
   function loadDesignForm(id){
     const d=data.designs.find(x=>x.id===id);if(!d)return;selectedDesignId=id;
-    refreshPieceSelect();$("designFormTitle").textContent=d.id;$("d_id").value=d.id;$("d_ref").value=d.ref_original||"";$("d_piece").value=d.piece_id||"";refreshCampoOptions(d.piece_id,d.campo_decorativo);$("d_campo_otro").value=d.campo_otro||"";$("d_simetria").value=d.clase_simetria||"";$("d_esquema").value=d.esquema||"";$("d_colores").value=d.colores||"";$("d_observaciones").value=d.observaciones||"";$("d_tecnica_otro").value=d.tecnica_otro||"";renderTechniqueChecks(d.tecnicas||[]);setOtherVisibility();previewFile("design:"+id,"designImagePreview");renderDesignList();
+    refreshPieceSelect();$("designFormTitle").textContent=d.id;$("d_id").value=d.id;$("d_ref").value=d.ref_original||"";$("d_piece").value=d.piece_id||"";refreshDesignFieldSelect(d.piece_id,d.field_id||"");$("d_simetria").value=d.clase_simetria||"";$("d_esquema").value=d.esquema||"";$("d_colores").value=d.colores||"";$("d_observaciones").value=d.observaciones||"";$("d_tecnica_otro").value=d.tecnica_otro||"";renderTechniqueChecks(d.tecnicas||[]);$("d_campo_legacy").value=d.campo_decorativo?([d.campo_decorativo,d.campo_otro].filter(Boolean).join(" · ")):"";$("d_campo_legacy_wrap").classList.toggle("hidden",!!d.field_id||!d.campo_decorativo);setOtherVisibility();previewFile("design:"+id,"designImagePreview");renderDesignList();
     bindPasteZone($("designImagePreview"),id+"-diseno",async file=>{
       await putFile("design:"+id,file);
       d.design_file_name=file.name;d.updated_at=nowIso();saveData();
@@ -411,16 +525,17 @@
       toast("Dibujo pegado en "+id);
     });
   }
-  $("d_piece").onchange=()=>refreshCampoOptions($("d_piece").value,"");
+  $("d_piece").onchange=()=>refreshDesignFieldSelect($("d_piece").value,"");
   $("designForm").onsubmit=async e=>{
     e.preventDefault();const d=data.designs.find(x=>x.id===selectedDesignId);if(!d)return;
-    Object.assign(d,{ref_original:$("d_ref").value.trim(),piece_id:$("d_piece").value,campo_decorativo:$("d_campo").value,campo_otro:$("d_campo_otro").value.trim(),clase_simetria:$("d_simetria").value,tecnicas:[...document.querySelectorAll('#techniqueChecks input:checked')].map(x=>x.value),tecnica_otro:$("d_tecnica_otro").value.trim(),esquema:$("d_esquema").value.trim(),colores:$("d_colores").value.trim(),observaciones:$("d_observaciones").value.trim(),updated_at:nowIso()});
+    const selectedField=data.fields.find(f=>f.id===$("d_field").value);
+    Object.assign(d,{ref_original:$("d_ref").value.trim(),piece_id:$("d_piece").value,field_id:selectedField?.id||"",campo_decorativo:selectedField?.nombre||"",campo_otro:selectedField?.nombre_otro||"",clase_simetria:$("d_simetria").value,tecnicas:[...document.querySelectorAll('#techniqueChecks input:checked')].map(x=>x.value),tecnica_otro:$("d_tecnica_otro").value.trim(),esquema:$("d_esquema").value.trim(),colores:$("d_colores").value.trim(),observaciones:$("d_observaciones").value.trim(),updated_at:nowIso()});
     const f=$("d_image").files[0];if(f){await putFile("design:"+d.id,f);d.design_file_name=f.name;$("d_image").value="";}
     saveData();renderDesignList();await previewFile("design:"+d.id,"designImagePreview");toast("Diseño guardado");
   };
   $("removeDesignImage").onclick=async()=>{await deleteFile("design:"+selectedDesignId);const d=data.designs.find(x=>x.id===selectedDesignId);if(d)d.design_file_name="";saveData();previewFile("design:"+selectedDesignId,"designImagePreview");toast("Archivo eliminado");};
   $("newDesignBtn").onclick=()=>{
-    const id=nextId("MR-D",data.designs);data.designs.push({id,ref_original:"",piece_id:"",campo_decorativo:"",campo_otro:"",tecnicas:[],tecnica_otro:"",esquema:"",clase_simetria:"",colores:"",observaciones:"",design_file_name:"",updated_at:""});selectedDesignId=id;saveData();renderDesignList();loadDesignForm(id);toast("Nuevo diseño creado: "+id);
+    const id=nextId("MR-D",data.designs);data.designs.push({id,ref_original:"",piece_id:"",field_id:"",campo_decorativo:"",campo_otro:"",tecnicas:[],tecnica_otro:"",esquema:"",clase_simetria:"",colores:"",observaciones:"",design_file_name:"",updated_at:""});selectedDesignId=id;saveData();renderDesignList();loadDesignForm(id);toast("Nuevo diseño creado: "+id);
   };
 
   // CSV/SPSS exports
@@ -435,13 +550,13 @@
     {key:"id",label:"ID_PIEZA"},{key:"caja",label:"CAJA"},{key:"sigla",label:"SIGLA"},{key:"sitio",label:"SITIO"},{key:"coleccion",label:"COLECCION"},{key:"publicacion",label:"PUBLICACION"},{key:"pagina",label:"PAGINA_LAMINA"},{key:"forma",label:"FORMA"},{key:"forma_otro",label:"FORMA_OTRO"},{key:"integridad",label:"INTEGRIDAD"},{key:"fotogrametria_url",label:"FOTOGRAMETRIA_URL"},{key:"photo_file_name",label:"FOTO_ARCHIVO"},{key:"observaciones",label:"OBSERVACIONES"}
   ]));
   $("exportDesigns").onclick=()=>download("muestra_referencia_disenos.csv",toCsv(data.designs,[
-    {key:"id",label:"ID_DISENO"},{key:"ref_original",label:"REF_ORIGINAL"},{key:"piece_id",label:"ID_PIEZA"},{key:"campo_decorativo",label:"CAMPO_DECORATIVO"},{key:"campo_otro",label:"CAMPO_OTRO"},{get:r=>(r.tecnicas||[]).join("|"),label:"TECNICAS"},{key:"tecnica_otro",label:"TECNICA_OTRO"},{key:"esquema",label:"ESQUEMA"},{key:"clase_simetria",label:"CLASE_SIMETRIA"},{key:"colores",label:"COLORES"},{key:"design_file_name",label:"DISENO_ARCHIVO"},{key:"observaciones",label:"OBSERVACIONES"}
+    {key:"id",label:"ID_DISENO"},{key:"ref_original",label:"REF_ORIGINAL"},{key:"piece_id",label:"ID_PIEZA"},{key:"field_id",label:"ID_CAMPO"},{key:"campo_decorativo",label:"CAMPO_DECORATIVO"},{key:"campo_otro",label:"CAMPO_OTRO"},{get:r=>(r.tecnicas||[]).join("|"),label:"TECNICAS"},{key:"tecnica_otro",label:"TECNICA_OTRO"},{key:"esquema",label:"ESQUEMA"},{key:"clase_simetria",label:"CLASE_SIMETRIA"},{key:"colores",label:"COLORES"},{key:"design_file_name",label:"DISENO_ARCHIVO"},{key:"observaciones",label:"OBSERVACIONES"}
   ]));
   $("exportSpss").onclick=()=>{
     const techs=data.options.tecnicas.filter(x=>x!=="Otro");
     const rows=data.designs.map(d=>{const p=data.pieces.find(x=>x.id===d.piece_id)||{};return {...d,...Object.fromEntries(Object.entries(p).map(([k,v])=>["p_"+k,v])),...Object.fromEntries(techs.map(t=>["tec_"+slug(t),(d.tecnicas||[]).includes(t)?1:0])),tec_otro:(d.tecnicas||[]).includes("Otro")?1:0};});
     const cols=[
-      {key:"id",label:"ID_DISENO"},{key:"ref_original",label:"REF_ORIGINAL"},{key:"piece_id",label:"ID_PIEZA"},
+      {key:"id",label:"ID_DISENO"},{key:"ref_original",label:"REF_ORIGINAL"},{key:"piece_id",label:"ID_PIEZA"},{key:"field_id",label:"ID_CAMPO"},
       {key:"p_sitio",label:"SITIO"},{key:"p_coleccion",label:"COLECCION"},{key:"p_sigla",label:"SIGLA"},{key:"p_forma",label:"FORMA"},{key:"p_integridad",label:"INTEGRIDAD"},
       {key:"campo_decorativo",label:"CAMPO_DECORATIVO"},{key:"campo_otro",label:"CAMPO_OTRO"},
       ...techs.map(t=>({key:"tec_"+slug(t),label:"TEC_"+slug(t).toUpperCase()})),{key:"tec_otro",label:"TEC_OTRO"},
