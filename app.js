@@ -251,8 +251,59 @@
   function loadPieceForm(id){
     const p=data.pieces.find(x=>x.id===id); if(!p)return; selectedPieceId=id;
     $("pieceFormTitle").textContent=p.id;$("p_id").value=p.id;$("p_caja").value=p.caja||"";$("p_sigla").value=p.sigla||"";$("p_sitio").value=p.sitio||"";$("p_coleccion").value=p.coleccion||"";$("p_publicacion").value=p.publicacion||"";$("p_pagina").value=p.pagina||"";$("p_forma").value=p.forma||"";$("p_forma_otro").value=p.forma_otro||"";$("p_integridad").value=p.integridad||"";$("p_fotogrametria").value=p.fotogrametria_url||"";$("p_observaciones").value=p.observaciones||"";
-    setOtherVisibility();previewFile("piece:"+id,"piecePhotoPreview");renderPieceList();
+    setOtherVisibility();previewFile("piece:"+id,"piecePhotoPreview");renderPieceList();renderPieceLinkedDesignsEditor(id);
   }
+  async function renderPieceLinkedDesignsEditor(pieceId){
+    const box=$("pieceLinkedDesignsEditor"); if(!box)return;
+    const ds=data.designs.filter(d=>d.piece_id===pieceId);
+    if(!ds.length){box.innerHTML='<p class="design-list-help">Esta pieza todavía no tiene diseños vinculados.</p>';return;}
+    box.innerHTML="";
+    for(const d of ds){
+      const file=await getFile("design:"+d.id);
+      const url=file?URL.createObjectURL(file):null;
+      const row=document.createElement("article");
+      row.className="piece-linked-design-row";
+      row.innerHTML=`
+        <div class="piece-linked-design-thumb">${url?'<img src="'+url+'" alt="Dibujo '+esc(d.id)+'">':'<span>Sin dibujo</span>'}</div>
+        <div class="piece-linked-design-meta">
+          <strong>${esc(d.id)}</strong>
+          <small>${esc(d.esquema||"esquema pendiente")} · ${esc(d.clase_simetria||"simetría pendiente")}</small>
+          <div class="piece-linked-design-actions">
+            <label class="design-upload-btn">${file?"Reemplazar dibujo":"Adjuntar dibujo"}<input type="file" accept="image/*,.svg" data-editor-design-upload="${esc(d.id)}"></label>
+            <button type="button" class="mini" data-edit-design="${esc(d.id)}">Editar datos del diseño</button>
+            ${file?'<button type="button" class="danger-link" data-remove-design-image="'+esc(d.id)+'">Quitar dibujo</button>':''}
+          </div>
+        </div>`;
+      box.appendChild(row);
+      if(url){const img=row.querySelector("img");img.onload=()=>URL.revokeObjectURL(url);}
+    }
+    box.querySelectorAll("[data-editor-design-upload]").forEach(input=>{
+      input.addEventListener("change",async e=>{
+        const file=e.target.files?.[0];if(!file)return;
+        const designId=e.target.dataset.editorDesignUpload;
+        await putFile("design:"+designId,file);
+        const d=data.designs.find(x=>x.id===designId);
+        if(d){d.design_file_name=file.name;d.updated_at=nowIso();}
+        saveData();toast("Dibujo guardado en "+designId);await renderPieceLinkedDesignsEditor(pieceId);
+      });
+    });
+    box.querySelectorAll("[data-remove-design-image]").forEach(btn=>{
+      btn.addEventListener("click",async()=>{
+        const designId=btn.dataset.removeDesignImage;
+        await deleteFile("design:"+designId);
+        const d=data.designs.find(x=>x.id===designId);if(d)d.design_file_name="";
+        saveData();toast("Dibujo eliminado de "+designId);await renderPieceLinkedDesignsEditor(pieceId);
+      });
+    });
+    box.querySelectorAll("[data-edit-design]").forEach(btn=>{
+      btn.addEventListener("click",()=>{
+        selectedDesignId=btn.dataset.editDesign;
+        $("editDesignTab").click();
+        loadDesignForm(selectedDesignId);
+      });
+    });
+  }
+
   $("pieceForm").onsubmit=async e=>{
     e.preventDefault();const p=data.pieces.find(x=>x.id===selectedPieceId);if(!p)return;
     Object.assign(p,{caja:$("p_caja").value.trim(),sigla:$("p_sigla").value.trim(),sitio:$("p_sitio").value.trim(),coleccion:$("p_coleccion").value.trim(),publicacion:$("p_publicacion").value.trim(),pagina:$("p_pagina").value.trim(),forma:$("p_forma").value,forma_otro:$("p_forma_otro").value.trim(),integridad:$("p_integridad").value,fotogrametria_url:$("p_fotogrametria").value.trim(),observaciones:$("p_observaciones").value.trim(),updated_at:nowIso()});
