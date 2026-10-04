@@ -122,7 +122,7 @@
     });
 
     d.schema_version=5;
-    return d;
+    return window.MR_MIGRATIONS?.upgrade ? window.MR_MIGRATIONS.upgrade(d) : d;
   }
 
   function loadData(){
@@ -261,10 +261,20 @@
   fillSelect($("p_forma"),data.options.formas,"Seleccionar…");
   fillSelect($("p_integridad"),data.options.integridad,"Seleccionar…");
   fillSelect($("d_simetria"),data.options.simetrias,"Seleccionar…");
+  if($("p_group")){
+    $("p_group").innerHTML="";
+    (window.MR_MIGRATIONS?.groups||[{value:"sin_clasificar",label:"Sin clasificar"}]).forEach(g=>{
+      const o=document.createElement("option");o.value=g.value;o.textContent=g.label;$("p_group").appendChild(o);
+    });
+  }
+
+  function orderedPieces(){
+    return [...data.pieces].sort((a,b)=>(+a.display_order||999999)-(+b.display_order||999999) || numericId(a.id,"MR-P")-numericId(b.id,"MR-P"));
+  }
 
   function refreshPieceSelect(){
     const el=$("d_piece"); const val=el.value;
-    fillSelect(el,data.pieces.map(p=>p.id),"Sin pieza vinculada");
+    fillSelect(el,orderedPieces().map(p=>p.id),"Sin pieza vinculada");
     if([...el.options].some(o=>o.value===val)) el.value=val;
   }
   refreshPieceSelect();
@@ -301,7 +311,7 @@
     const grid=$("catalogGrid"); grid.innerHTML="";
     const q=$("searchInput").value.trim().toLowerCase();
     const ff=$("filterForm").value, fs=$("filterSite").value;
-    const items=currentViewMode==="pieces"?data.pieces:data.designs;
+    const items=currentViewMode==="pieces"?orderedPieces():data.designs;
     const filtered=items.filter(item=>{
       let hay="";
       if(currentViewMode==="pieces"){
@@ -420,7 +430,7 @@
 
   function renderPieceList(){
     const q=$("pieceSearch").value?.toLowerCase()||"";const box=$("pieceList");box.innerHTML="";
-    data.pieces.filter(p=>[p.id,p.sigla,p.sitio,p.forma].join(" ").toLowerCase().includes(q)).forEach(p=>{
+    orderedPieces().filter(p=>[p.id,p.sigla,p.sitio,p.forma,p.sample_group].join(" ").toLowerCase().includes(q)).forEach(p=>{
       const row=document.createElement("div");row.className="record-row"+(p.id===selectedPieceId?" active":"");
       row.innerHTML=`<strong>${esc(p.id)}</strong><small>${esc(pieceLabel(p)||"pendiente")}</small>`;row.onclick=()=>{selectedPieceId=p.id;renderPieceList();loadPieceForm(p.id);};box.appendChild(row);
     });
@@ -445,7 +455,7 @@
 
   function loadPieceForm(id){
     const p=data.pieces.find(x=>x.id===id); if(!p)return; selectedPieceId=id;
-    $("pieceFormTitle").textContent=p.id;$("p_id").value=p.id;$("p_caja").value=p.caja||"";$("p_sigla").value=p.sigla||"";$("p_sitio").value=p.sitio||"";$("p_coleccion").value=p.coleccion||"";$("p_publicacion").value=p.publicacion||"";$("p_pagina").value=p.pagina||"";$("p_forma").value=p.forma||"";$("p_forma_otro").value=p.forma_otro||"";$("p_integridad").value=p.integridad||"";$("p_fotogrametria").value=p.fotogrametria_url||"";$("p_observaciones").value=p.observaciones||"";
+    $("pieceFormTitle").textContent=p.id;$("p_id").value=p.id;$("p_caja").value=p.caja||"";$("p_sigla").value=p.sigla||"";$("p_sitio").value=p.sitio||"";$("p_coleccion").value=p.coleccion||"";$("p_publicacion").value=p.publicacion||"";$("p_pagina").value=p.pagina||"";$("p_forma").value=p.forma||"";$("p_forma_otro").value=p.forma_otro||"";$("p_integridad").value=p.integridad||"";if($("p_group"))$("p_group").value=p.sample_group||"sin_clasificar";if($("p_order"))$("p_order").value=p.display_order||"";$("p_fotogrametria").value=p.fotogrametria_url||"";$("p_observaciones").value=p.observaciones||"";
     setOtherVisibility();previewFile("piece:"+id,"piecePhotoPreview");renderPieceList();renderPieceFieldsEditor(id);renderPieceLinkedDesignsEditor(id);
     bindPasteZone($("piecePhotoPreview"),id+"-foto",async file=>{
       await putFile("piece:"+id,file);
@@ -508,7 +518,7 @@
       if(input.checked){
         if(!existingField){
           const id=nextId("MR-C",data.fields);
-          data.fields.push({id,piece_id:pieceId,catalog_code:item.codigo,nombre:item.nombre,nombre_otro:"",observaciones:"",tecnicas:[],tecnica_otro:"",esquemas:[],clase_simetria:"",colores:"",design_id:"",updated_at:nowIso()});
+          data.fields.push({id,uid:window.MR_MIGRATIONS?.newUid?window.MR_MIGRATIONS.newUid("field",data):"",piece_id:pieceId,piece_uid:data.pieces.find(p=>p.id===pieceId)?.uid||"",catalog_code:item.codigo,nombre:item.nombre,nombre_otro:"",observaciones:"",tecnicas:[],tecnica_otro:"",esquemas:[],clase_simetria:"",colores:"",design_id:"",updated_at:nowIso()});
           saveData();toast(item.codigo+" agregado");
         }else if(!existingField.catalog_code){
           existingField.catalog_code=item.codigo;existingField.updated_at=nowIso();saveData();
@@ -581,6 +591,7 @@
         const id=nextId("MR-D",data.designs);
         d={
           id,
+          uid:window.MR_MIGRATIONS?.newUid?window.MR_MIGRATIONS.newUid("design",data):"",
           ref_original:"",
           piece_id:pieceId,
           field_id:f.id,
@@ -612,7 +623,7 @@
   $("addFieldBtn").onclick=()=>{
     const pieceId=selectedPieceId;if(!pieceId)return;
     const id=nextId("MR-C",data.fields);
-    data.fields.push({id,piece_id:pieceId,catalog_code:"",nombre:"Otro",nombre_otro:"",observaciones:"",tecnicas:[],tecnica_otro:"",esquemas:[],clase_simetria:"",colores:"",design_id:"",updated_at:nowIso()});
+    data.fields.push({id,uid:window.MR_MIGRATIONS?.newUid?window.MR_MIGRATIONS.newUid("field",data):"",piece_id:pieceId,piece_uid:data.pieces.find(p=>p.id===pieceId)?.uid||"",catalog_code:"",nombre:"Otro",nombre_otro:"",observaciones:"",tecnicas:[],tecnica_otro:"",esquemas:[],clase_simetria:"",colores:"",design_id:"",updated_at:nowIso()});
     saveData();renderPieceFieldsEditor(pieceId);toast("Nuevo campo creado: "+id);
   };
 
@@ -679,7 +690,7 @@
 
   $("pieceForm").onsubmit=async e=>{
     e.preventDefault();const p=data.pieces.find(x=>x.id===selectedPieceId);if(!p)return;
-    Object.assign(p,{caja:$("p_caja").value.trim(),sigla:$("p_sigla").value.trim(),sitio:$("p_sitio").value.trim(),coleccion:$("p_coleccion").value.trim(),publicacion:$("p_publicacion").value.trim(),pagina:$("p_pagina").value.trim(),forma:$("p_forma").value,forma_otro:$("p_forma_otro").value.trim(),integridad:$("p_integridad").value,fotogrametria_url:$("p_fotogrametria").value.trim(),observaciones:$("p_observaciones").value.trim(),updated_at:nowIso()});
+    Object.assign(p,{caja:$("p_caja").value.trim(),sigla:$("p_sigla").value.trim(),sitio:$("p_sitio").value.trim(),coleccion:$("p_coleccion").value.trim(),publicacion:$("p_publicacion").value.trim(),pagina:$("p_pagina").value.trim(),forma:$("p_forma").value,forma_otro:$("p_forma_otro").value.trim(),integridad:$("p_integridad").value,sample_group:$("p_group")?.value||p.sample_group||"sin_clasificar",fotogrametria_url:$("p_fotogrametria").value.trim(),observaciones:$("p_observaciones").value.trim(),updated_at:nowIso()});
     const f=$("p_photo").files[0];if(f){await putFile("piece:"+p.id,f);p.photo_file_name=f.name;$("p_photo").value="";}
     saveData();renderPieceList();refreshPieceSelect();await previewFile("piece:"+p.id,"piecePhotoPreview");toast("Pieza guardada");
   };
@@ -689,7 +700,10 @@
     const max=Math.max(0,...arr.map(x=>parseInt(x.id.replace(prefix,""),10)||0));return prefix+String(max+1).padStart(4,"0");
   }
   $("newPieceBtn").onclick=()=>{
-    const id=nextId("MR-P",data.pieces);data.pieces.push({id,caja:"",sigla:"",sitio:"",coleccion:"",publicacion:"",pagina:"",forma:"",forma_otro:"",integridad:"",observaciones:"",fotogrametria_url:"",photo_file_name:"",updated_at:""});selectedPieceId=id;saveData();refreshPieceSelect();renderPieceList();loadPieceForm(id);toast("Nueva pieza creada: "+id);
+    const id=nextId("MR-P",data.pieces);
+    const uid=window.MR_MIGRATIONS?.newUid?window.MR_MIGRATIONS.newUid("piece",data):"";
+    const display_order=Math.max(0,...data.pieces.map(p=>+p.display_order||0))+1;
+    data.pieces.push({id,uid,caja:"",sigla:"",sitio:"",coleccion:"",publicacion:"",pagina:"",forma:"",forma_otro:"",integridad:"",sample_group:"sin_clasificar",display_order,observaciones:"",fotogrametria_url:"",photo_file_name:"",updated_at:""});selectedPieceId=id;saveData();refreshPieceSelect();renderPieceList();loadPieceForm(id);toast("Nueva pieza creada: "+id);
   };
 
   function renderTechniqueChecks(selected=[]){
@@ -864,7 +878,7 @@
   };
   $("removeDesignImage").onclick=async()=>{await deleteFile("design:"+selectedDesignId);const d=data.designs.find(x=>x.id===selectedDesignId);if(d)d.design_file_name="";saveData();previewFile("design:"+selectedDesignId,"designImagePreview");toast("Archivo eliminado");};
   $("newDesignBtn").onclick=()=>{
-    const id=nextId("MR-D",data.designs);data.designs.push({id,ref_original:"",piece_id:"",field_id:"",campo_decorativo:"",campo_otro:"",tecnicas:[],tecnica_otro:"",esquema:"",clase_simetria:"",colores:"",observaciones:"",design_file_name:"",updated_at:""});selectedDesignId=id;saveData();renderDesignList();loadDesignForm(id);toast("Nuevo diseño creado: "+id);
+    const id=nextId("MR-D",data.designs);data.designs.push({id,uid:window.MR_MIGRATIONS?.newUid?window.MR_MIGRATIONS.newUid("design",data):"",ref_original:"",piece_id:"",field_id:"",campo_otro:"",tecnicas:[],tecnica_otro:"",esquema:"",clase_simetria:"",colores:"",observaciones:"",design_file_name:"",updated_at:""});selectedDesignId=id;saveData();renderDesignList();loadDesignForm(id);toast("Nuevo diseño creado: "+id);
   };
 
   // CSV/SPSS exports
@@ -876,7 +890,7 @@
     return [cols.map(c=>csvEsc(c.label)).join(","),...rows.map(r=>cols.map(c=>csvEsc(typeof c.get==="function"?c.get(r):r[c.key])).join(","))].join("\n");
   }
   $("exportPieces").onclick=()=>download("muestra_referencia_piezas.csv",toCsv(data.pieces,[
-    {key:"id",label:"ID_PIEZA"},{key:"caja",label:"CAJA"},{key:"sigla",label:"SIGLA"},{key:"sitio",label:"SITIO"},{key:"coleccion",label:"COLECCION"},{key:"publicacion",label:"PUBLICACION"},{key:"pagina",label:"PAGINA_LAMINA"},{key:"forma",label:"FORMA"},{key:"forma_otro",label:"FORMA_OTRO"},{key:"integridad",label:"INTEGRIDAD"},{key:"fotogrametria_url",label:"FOTOGRAMETRIA_URL"},{key:"photo_file_name",label:"FOTO_ARCHIVO"},{key:"observaciones",label:"OBSERVACIONES"}
+    {key:"id",label:"ID_PIEZA"},{key:"uid",label:"UID_INTERNO"},{key:"sample_group",label:"GRUPO_MUESTRA"},{key:"display_order",label:"ORDEN_MUESTRA"},{key:"caja",label:"CAJA"},{key:"sigla",label:"SIGLA"},{key:"sitio",label:"SITIO"},{key:"coleccion",label:"COLECCION"},{key:"publicacion",label:"PUBLICACION"},{key:"pagina",label:"PAGINA_LAMINA"},{key:"forma",label:"FORMA"},{key:"forma_otro",label:"FORMA_OTRO"},{key:"integridad",label:"INTEGRIDAD"},{key:"fotogrametria_url",label:"FOTOGRAMETRIA_URL"},{key:"photo_file_name",label:"FOTO_ARCHIVO"},{key:"observaciones",label:"OBSERVACIONES"}
   ]));
   if($("exportFields")) $("exportFields").onclick=()=>download("muestra_referencia_campos.csv",toCsv(data.fields,[
     {key:"id",label:"ID_CAMPO"},{key:"piece_id",label:"ID_PIEZA"},{key:"catalog_code",label:"CODIGO_SECTOR"},{key:"nombre",label:"SECTOR_CAMPO"},{key:"nombre_otro",label:"CAMPO_OTRO"},{key:"design_id",label:"ID_DISENO"},{get:r=>(r.tecnicas||[]).join("|"),label:"TECNICAS"},{key:"tecnica_otro",label:"TECNICA_OTRO"},{get:r=>(r.esquemas||[]).join("|"),label:"ESQUEMAS"},{key:"clase_simetria",label:"CLASE_SIMETRIA"},{key:"colores",label:"COLORES"},{key:"observaciones",label:"OBSERVACIONES"}
@@ -911,7 +925,8 @@
   function slug(s){return s.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_|_$/g,"");}
   $("exportDictionary").onclick=()=>{
     const rows=[
-      ["ID_PIEZA","Cadena","Identificador único e inmutable de la pieza","MR-Pxxxx"],
+      ["ID_PIEZA","Cadena","Identificador visible y renumerable según el orden de la muestra","MR-Pxxxx"],
+      ["UID_INTERNO","Cadena","Identificador interno estable; no cambia al reordenar","PUID-xxxxxx"],
       ["ID_CAMPO","Cadena","Identificador único del campo decorativo; unidad de análisis","MR-Cxxxx"],
       ["ID_DISENO","Cadena","Identificador único del dibujo que representa un campo decorativo","MR-Dxxxx"],
       ["REF_ORIGINAL","Cadena","Número o referencia del archivo maestro de Inkscape","Texto"],
