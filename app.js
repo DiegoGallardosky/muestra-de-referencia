@@ -308,7 +308,11 @@
         card.onclick=()=>openPieceDetail(item.id);
       }else{
         const p=data.pieces.find(x=>x.id===item.piece_id);
-        body.innerHTML=`<span class="card-id">${esc(item.id)}</span><h3>${esc(item.esquema||"Esquema por identificar")}</h3><p>${esc(item.piece_id||"Sin pieza vinculada")}${p?.forma?' · '+esc(p.forma):''}</p><div class="chips">${item.clase_simetria?'<span class="chip">'+esc(item.clase_simetria)+'</span>':''}${item.campo_decorativo?'<span class="chip">'+esc(item.campo_decorativo)+'</span>':''}</div>`;
+        const f=data.fields.find(x=>x.id===item.field_id);
+        const schemes=(f?.esquemas&&f.esquemas.length)?f.esquemas.join(" | "):(item.esquema||"");
+        const symmetry=f?.clase_simetria||item.clase_simetria||"";
+        const fieldName=f?fieldLabel(f):(item.campo_decorativo||"");
+        body.innerHTML=`<span class="card-id">${esc(item.id)}</span><h3>${esc(schemes||"Esquema por identificar")}</h3><p>${esc(item.piece_id||"Sin pieza vinculada")}${p?.forma?' · '+esc(p.forma):''}</p><div class="chips">${symmetry?'<span class="chip">'+esc(symmetry)+'</span>':''}${fieldName?'<span class="chip">'+esc(fieldName)+'</span>':''}</div>`;
         const u=await mediaUrl("design:"+item.id); if(u){media.innerHTML='<img alt="">';media.querySelector("img").src=u;}
         card.onclick=()=>openDesignDetail(item.id);
       }
@@ -347,7 +351,7 @@
       </article>`);
     }
 
-    $("dialogContent").innerHTML=`<div class="detail-grid"><div><div class="detail-media">${u?'<img src="'+u+'">':'<span class="placeholder">'+esc(id)+'</span>'}</div>${p.fotogrametria_url?'<iframe class="embed-frame" src="'+esc(p.fotogrametria_url)+'" allowfullscreen loading="lazy"></iframe>':''}</div><div class="detail-data"><span class="card-id">${esc(id)}</span><h2>${esc(p.forma||"Pieza sin clasificar")}</h2><dl class="detail-list"><dt>Sigla</dt><dd>${esc(p.sigla||"—")}</dd><dt>Sitio</dt><dd>${esc(p.sitio||"—")}</dd><dt>Colección</dt><dd>${esc(p.coleccion||"—")}</dd><dt>Integridad</dt><dd>${esc(p.integridad||"—")}</dd><dt>Publicación</dt><dd>${esc(p.publicacion||"—")}</dd><dt>Página</dt><dd>${esc(p.pagina||"—")}</dd><dt>Observaciones</dt><dd>${esc(p.observaciones||"—")}</dd><dt>Campos decorados</dt><dd>${fs.length}</dd><dt>Clase de simetría</dt><dd>${esc([...new Set(ds.map(d=>d.clase_simetria).filter(Boolean))].join(", ")||"—")}</dd></dl><div class="field-summary-section"><h3>Campos / sectores decorados</h3><p class="design-list-help">Cada campo es una unidad fundamental de la muestra de referencia y puede compartir un mismo dibujo con otros campos.</p>${fieldCards.length?fieldCards.join(""):'<p>Sin campos decorativos registrados.</p>'}</div><div class="design-list-detail"><h3>Dibujos / diseños vinculados</h3><p class="design-list-help">Cada diseño puede adjuntar o reemplazar su dibujo directamente desde esta ficha.</p>${ds.length?designCards.join(""):'<p>Sin diseños vinculados.</p>'}</div></div></div>`;
+    $("dialogContent").innerHTML=`<div class="detail-grid"><div><div class="detail-media">${u?'<img src="'+u+'">':'<span class="placeholder">'+esc(id)+'</span>'}</div>${p.fotogrametria_url?'<iframe class="embed-frame" src="'+esc(p.fotogrametria_url)+'" allowfullscreen loading="lazy"></iframe>':''}</div><div class="detail-data"><span class="card-id">${esc(id)}</span><h2>${esc(p.forma||"Pieza sin clasificar")}</h2><dl class="detail-list"><dt>Sigla</dt><dd>${esc(p.sigla||"—")}</dd><dt>Sitio</dt><dd>${esc(p.sitio||"—")}</dd><dt>Colección</dt><dd>${esc(p.coleccion||"—")}</dd><dt>Integridad</dt><dd>${esc(p.integridad||"—")}</dd><dt>Publicación</dt><dd>${esc(p.publicacion||"—")}</dd><dt>Página</dt><dd>${esc(p.pagina||"—")}</dd><dt>Observaciones</dt><dd>${esc(p.observaciones||"—")}</dd><dt>Campos decorados</dt><dd>${fs.length}</dd><dt>Clase(s) de simetría</dt><dd>${esc([...new Set(fs.map(f=>f.clase_simetria).filter(Boolean))].join(", ")||"—")}</dd></dl><div class="field-summary-section"><h3>Campos / sectores decorados</h3><p class="design-list-help">Cada campo es una unidad fundamental de la muestra de referencia y puede compartir un mismo dibujo con otros campos.</p>${fieldCards.length?fieldCards.join(""):'<p>Sin campos decorativos registrados.</p>'}</div><div class="design-list-detail"><h3>Dibujos / diseños vinculados</h3><p class="design-list-help">Cada diseño puede adjuntar o reemplazar su dibujo directamente desde esta ficha.</p>${ds.length?designCards.join(""):'<p>Sin diseños vinculados.</p>'}</div></div></div>`;
 
     $("dialogContent").querySelectorAll("[data-modal-paste-design]").forEach(zone=>{
       const designId=zone.dataset.modalPasteDesign;
@@ -380,9 +384,15 @@
     if(!$("detailDialog").open) $("detailDialog").showModal();
   }
   async function openDesignDetail(id){
-    const d=data.designs.find(x=>x.id===id); if(!d)return; const p=data.pieces.find(x=>x.id===d.piece_id);
+    const d=data.designs.find(x=>x.id===id); if(!d)return;
+    const p=data.pieces.find(x=>x.id===d.piece_id);
+    const f=data.fields.find(x=>x.id===d.field_id);
+    const schemes=(f?.esquemas&&f.esquemas.length)?f.esquemas.join(" | "):(d.esquema||"");
+    const techniques=(f?.tecnicas&&f.tecnicas.length)?f.tecnicas:(d.tecnicas||[]);
+    const symmetry=f?.clase_simetria||d.clase_simetria||"";
+    const colors=f?.colores||d.colores||"";
     const u=await mediaUrl("design:"+id);
-    $("dialogContent").innerHTML=`<div class="detail-grid"><div class="detail-media" style="background:#f0ecdf">${u?'<img src="'+u+'">':'<span class="placeholder">'+esc(id)+'</span>'}</div><div class="detail-data"><span class="card-id">${esc(id)}</span><h2>${esc(d.esquema||"Esquema por identificar")}</h2><dl class="detail-list"><dt>Ref. original</dt><dd>${esc(d.ref_original||"—")}</dd><dt>Pieza</dt><dd>${esc(d.piece_id||"—")}</dd><dt>Forma</dt><dd>${esc(p?.forma||"—")}</dd><dt>Campo</dt><dd>${esc(d.campo_decorativo||"—")}</dd><dt>Técnica(s)</dt><dd>${esc((d.tecnicas||[]).join(", ")||"—")}</dd><dt>Simetría</dt><dd>${esc(d.clase_simetria||"—")}</dd><dt>Colores</dt><dd>${esc(d.colores||"—")}</dd><dt>Observaciones</dt><dd>${esc(d.observaciones||"—")}</dd></dl></div></div>`;
+    $("dialogContent").innerHTML=`<div class="detail-grid"><div class="detail-media" style="background:#f0ecdf">${u?'<img src="'+u+'">':'<span class="placeholder">'+esc(id)+'</span>'}</div><div class="detail-data"><span class="card-id">${esc(id)}</span><h2>${esc(schemes||"Esquema por identificar")}</h2><dl class="detail-list"><dt>Ref. original</dt><dd>${esc(d.ref_original||"—")}</dd><dt>Pieza</dt><dd>${esc(d.piece_id||"—")}</dd><dt>Forma</dt><dd>${esc(p?.forma||"—")}</dd><dt>Campo</dt><dd>${esc(f?f.id+" · "+fieldLabel(f):(d.campo_decorativo||"—"))}</dd><dt>Técnica(s)</dt><dd>${esc(techniques.join(", ")||"—")}</dd><dt>Simetría</dt><dd>${esc(symmetry||"—")}</dd><dt>Esquema(s)</dt><dd>${esc(schemes||"—")}</dd><dt>Colores</dt><dd>${esc(colors||"—")}</dd><dt>Observaciones</dt><dd>${esc(d.observaciones||f?.observaciones||"—")}</dd></dl></div></div>`;
     $("detailDialog").showModal();
   }
   $("closeDialog").onclick=()=>$("detailDialog").close();
@@ -732,7 +742,7 @@
   $("exportPieces").onclick=()=>download("muestra_referencia_piezas.csv",toCsv(data.pieces,[
     {key:"id",label:"ID_PIEZA"},{key:"caja",label:"CAJA"},{key:"sigla",label:"SIGLA"},{key:"sitio",label:"SITIO"},{key:"coleccion",label:"COLECCION"},{key:"publicacion",label:"PUBLICACION"},{key:"pagina",label:"PAGINA_LAMINA"},{key:"forma",label:"FORMA"},{key:"forma_otro",label:"FORMA_OTRO"},{key:"integridad",label:"INTEGRIDAD"},{key:"fotogrametria_url",label:"FOTOGRAMETRIA_URL"},{key:"photo_file_name",label:"FOTO_ARCHIVO"},{key:"observaciones",label:"OBSERVACIONES"}
   ]));
-  $("exportFields").onclick=()=>download("muestra_referencia_campos.csv",toCsv(data.fields,[
+  if($("exportFields")) $("exportFields").onclick=()=>download("muestra_referencia_campos.csv",toCsv(data.fields,[
     {key:"id",label:"ID_CAMPO"},{key:"piece_id",label:"ID_PIEZA"},{key:"catalog_code",label:"CODIGO_SECTOR"},{key:"nombre",label:"SECTOR_CAMPO"},{key:"nombre_otro",label:"CAMPO_OTRO"},{key:"design_id",label:"ID_DISENO"},{get:r=>(r.tecnicas||[]).join("|"),label:"TECNICAS"},{key:"tecnica_otro",label:"TECNICA_OTRO"},{get:r=>(r.esquemas||[]).join("|"),label:"ESQUEMAS"},{key:"clase_simetria",label:"CLASE_SIMETRIA"},{key:"colores",label:"COLORES"},{key:"observaciones",label:"OBSERVACIONES"}
   ]));
   $("exportDesigns").onclick=()=>download("muestra_referencia_dibujos.csv",toCsv(data.designs,[
@@ -803,6 +813,7 @@
       const p=data.pieces.find(x=>x.id===f.piece_id);
       if(!p) issues.push(f.id+" apunta a una pieza inexistente: "+(f.piece_id||"(vacío)"));
       if(!f.catalog_code && f.nombre!=="Otro") warnings.push(f.id+" no tiene código de sector CD");
+      if(f.catalog_code && data.fields.some(x=>x.id!==f.id && x.piece_id===f.piece_id && x.catalog_code===f.catalog_code)) issues.push(f.piece_id+" tiene el sector "+f.catalog_code+" repetido");
       if(p && f.catalog_code){
         const allowed=data.options.campoCatalogoPorForma?.[p.forma]||[];
         const match=allowed.find(x=>x.codigo===f.catalog_code);
@@ -829,7 +840,7 @@
     return {issues,warnings};
   }
 
-  $("runAudit").onclick=()=>{
+  if($("runAudit")) $("runAudit").onclick=()=>{
     const r=auditDatabase();
     const box=$("auditSummary");
     box.innerHTML='<strong>'+r.issues.length+' problema(s) crítico(s)</strong><span>'+r.warnings.length+' advertencia(s)</span>'+
