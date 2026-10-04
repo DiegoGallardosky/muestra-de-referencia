@@ -172,8 +172,42 @@
     const p=data.pieces.find(x=>x.id===id); if(!p)return;
     const ds=data.designs.filter(d=>d.piece_id===id);
     const u=await mediaUrl("piece:"+id);
-    $("dialogContent").innerHTML=`<div class="detail-grid"><div><div class="detail-media">${u?'<img src="'+u+'">':'<span class="placeholder">'+esc(id)+'</span>'}</div>${p.fotogrametria_url?'<iframe class="embed-frame" src="'+esc(p.fotogrametria_url)+'" allowfullscreen loading="lazy"></iframe>':''}</div><div class="detail-data"><span class="card-id">${esc(id)}</span><h2>${esc(p.forma||"Pieza sin clasificar")}</h2><dl class="detail-list"><dt>Sigla</dt><dd>${esc(p.sigla||"—")}</dd><dt>Sitio</dt><dd>${esc(p.sitio||"—")}</dd><dt>Colección</dt><dd>${esc(p.coleccion||"—")}</dd><dt>Integridad</dt><dd>${esc(p.integridad||"—")}</dd><dt>Publicación</dt><dd>${esc(p.publicacion||"—")}</dd><dt>Página</dt><dd>${esc(p.pagina||"—")}</dd><dt>Observaciones</dt><dd>${esc(p.observaciones||"—")}</dd></dl><div class="design-list-detail"><h3>Diseños vinculados</h3>${ds.length?ds.map(d=>'<div class="design-detail-row"><strong>'+esc(d.id)+'</strong> · '+esc(d.esquema||"esquema pendiente")+' · '+esc(d.clase_simetria||"simetría pendiente")+'</div>').join(""):'<p>Sin diseños vinculados.</p>'}</div></div></div>`;
-    $("detailDialog").showModal();
+
+    const designCards=[];
+    for(const d of ds){
+      const du=await mediaUrl("design:"+d.id);
+      designCards.push(`<article class="linked-design-card">
+        <div class="linked-design-media">${du?'<img src="'+du+'" alt="Dibujo '+esc(d.id)+'">':'<span class="linked-design-empty">Dibujo no adjuntado</span>'}</div>
+        <div class="linked-design-info">
+          <div><strong>${esc(d.id)}</strong><span>${esc(d.esquema||"esquema pendiente")} · ${esc(d.clase_simetria||"simetría pendiente")}</span></div>
+          <div class="linked-design-actions">
+            <button type="button" class="mini design-view-btn" data-design-id="${esc(d.id)}">Ver ficha</button>
+            <label class="design-upload-btn">${du?"Reemplazar dibujo":"Adjuntar dibujo"}<input type="file" accept="image/*,.svg" data-design-upload="${esc(d.id)}"></label>
+          </div>
+        </div>
+      </article>`);
+    }
+
+    $("dialogContent").innerHTML=`<div class="detail-grid"><div><div class="detail-media">${u?'<img src="'+u+'">':'<span class="placeholder">'+esc(id)+'</span>'}</div>${p.fotogrametria_url?'<iframe class="embed-frame" src="'+esc(p.fotogrametria_url)+'" allowfullscreen loading="lazy"></iframe>':''}</div><div class="detail-data"><span class="card-id">${esc(id)}</span><h2>${esc(p.forma||"Pieza sin clasificar")}</h2><dl class="detail-list"><dt>Sigla</dt><dd>${esc(p.sigla||"—")}</dd><dt>Sitio</dt><dd>${esc(p.sitio||"—")}</dd><dt>Colección</dt><dd>${esc(p.coleccion||"—")}</dd><dt>Integridad</dt><dd>${esc(p.integridad||"—")}</dd><dt>Publicación</dt><dd>${esc(p.publicacion||"—")}</dd><dt>Página</dt><dd>${esc(p.pagina||"—")}</dd><dt>Observaciones</dt><dd>${esc(p.observaciones||"—")}</dd></dl><div class="design-list-detail"><h3>Diseños vinculados</h3><p class="design-list-help">Cada diseño puede adjuntar o reemplazar su dibujo directamente desde esta ficha.</p>${ds.length?designCards.join(""):'<p>Sin diseños vinculados.</p>'}</div></div></div>`;
+
+    $("dialogContent").querySelectorAll("[data-design-upload]").forEach(input=>{
+      input.addEventListener("change",async e=>{
+        const file=e.target.files?.[0]; if(!file)return;
+        const designId=e.target.dataset.designUpload;
+        await putFile("design:"+designId,file);
+        const d=data.designs.find(x=>x.id===designId);
+        if(d){d.design_file_name=file.name;d.updated_at=nowIso();}
+        saveData();
+        toast("Dibujo guardado en "+designId);
+        await openPieceDetail(id);
+      });
+    });
+
+    $("dialogContent").querySelectorAll(".design-view-btn").forEach(btn=>{
+      btn.addEventListener("click",()=>openDesignDetail(btn.dataset.designId));
+    });
+
+    if(!$("detailDialog").open) $("detailDialog").showModal();
   }
   async function openDesignDetail(id){
     const d=data.designs.find(x=>x.id===id); if(!d)return; const p=data.pieces.find(x=>x.id===d.piece_id);
