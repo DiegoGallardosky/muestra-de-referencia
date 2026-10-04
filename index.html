@@ -100,10 +100,10 @@
             <label class="span-2">Fotogrametría — URL<input id="p_fotogrametria" type="url" placeholder="https://…"></label>
             <label class="span-2">Observaciones<textarea id="p_observaciones" rows="4"></textarea></label>
             <div class="span-2 media-field">
-              <div><strong>Fotografía de la pieza</strong><small>JPG, PNG o WebP. Puede reemplazarse.</small></div>
+              <div><strong>Fotografía de la pieza</strong><small>Elegí un archivo o hacé clic en la vista previa y pegá una imagen con Ctrl+V.</small></div>
               <input id="p_photo" type="file" accept="image/*">
               <button id="removePiecePhoto" type="button" class="danger-link">Quitar fotografía</button>
-              <div id="piecePhotoPreview" class="media-preview"></div>
+              <div id="piecePhotoPreview" class="media-preview paste-target" tabindex="0" role="button" aria-label="Pegar fotografía de la pieza con Control V"></div>
             </div>
             <section class="span-2 piece-design-editor">
               <div class="piece-design-editor-head">
@@ -135,10 +135,10 @@
             <label class="span-2">Colores <small>Descripción libre.</small><input id="d_colores" placeholder="Ej.: rojo, negro sobre ante…"></label>
             <label class="span-2">Observaciones<textarea id="d_observaciones" rows="4"></textarea></label>
             <div class="span-2 media-field">
-              <div><strong>Archivo gráfico del diseño</strong><small>SVG, PNG, JPG o WebP. Puede reemplazarse.</small></div>
+              <div><strong>Archivo gráfico del diseño</strong><small>Elegí un archivo o hacé clic en la vista previa y pegá el dibujo con Ctrl+V.</small></div>
               <input id="d_image" type="file" accept="image/*,.svg">
               <button id="removeDesignImage" type="button" class="danger-link">Quitar archivo</button>
-              <div id="designImagePreview" class="media-preview design-preview"></div>
+              <div id="designImagePreview" class="media-preview design-preview paste-target" tabindex="0" role="button" aria-label="Pegar dibujo del diseño con Control V"></div>
             </div>
           </div>
         </form>
