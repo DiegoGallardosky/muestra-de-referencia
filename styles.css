@@ -103,3 +103,13 @@ dialog{
   .field-manager-head{align-items:flex-start;flex-direction:column}
   .field-row-grid{grid-template-columns:1fr}
 }
+
+.field-preset-selector{margin-bottom:14px}
+.field-preset-title{color:var(--muted);font-size:13px;margin-bottom:9px}
+.field-preset-title strong{color:var(--white)}
+.field-preset-grid{display:flex;flex-wrap:wrap;gap:8px}
+.field-preset-chip{display:flex!important;flex-direction:row!important;align-items:center;gap:8px;padding:9px 11px;border:1px solid var(--line);border-radius:10px;background:#0f1b16;cursor:pointer;font-weight:600!important}
+.field-preset-chip input{width:auto;margin:0}
+.field-preset-chip span{display:flex;gap:7px;align-items:center}
+.field-preset-chip b{color:var(--lime);font-size:11px;letter-spacing:.05em}
+.field-preset-chip:has(input:checked){border-color:rgba(194,215,137,.48);background:rgba(194,215,137,.08)}
