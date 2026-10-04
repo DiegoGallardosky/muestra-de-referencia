@@ -6,6 +6,16 @@
   const DB_STORE = "files";
 
   let data = loadData();
+  // Completa códigos CD en campos existentes sin cambiar sus contenidos.
+  try{
+    data.fields.forEach(f=>{
+      if(f.catalog_code)return;
+      const p=data.pieces.find(x=>x.id===f.piece_id);
+      const item=data.options?.campoCatalogoPorForma?.[p?.forma]?.find(c=>c.nombre===f.nombre);
+      if(item)f.catalog_code=item.codigo;
+    });
+    localStorage.setItem(STORE_KEY,JSON.stringify(data));
+  }catch(e){}
   let currentViewMode = "pieces";
   let selectedPieceId = data.pieces[0]?.id || "";
   let selectedDesignId = data.designs[0]?.id || "";
@@ -27,6 +37,7 @@
       if(!("nombre" in f)) f.nombre=f.campo_decorativo||"";
       if(!("nombre_otro" in f)) f.nombre_otro=f.campo_otro||"";
       if(!("observaciones" in f)) f.observaciones="";
+      if(!("catalog_code" in f)) f.catalog_code="";
     });
 
     const nextFieldId=()=>{
@@ -357,12 +368,19 @@
     });
   }
   function fieldLabel(f){
-    return f ? (f.nombre==="Otro"?(f.nombre_otro||"Otro"):(f.nombre||"Campo sin definir")) : "Campo sin definir";
+    if(!f) return "Campo sin definir";
+    const base=f.nombre==="Otro"?(f.nombre_otro||"Otro"):(f.nombre||"Campo sin definir");
+    return f.catalog_code ? f.catalog_code+" · "+base : base;
+  }
+
+  function fieldCatalogForPiece(pieceId){
+    const p=data.pieces.find(x=>x.id===pieceId);
+    return (p?.forma && data.options.campoCatalogoPorForma?.[p.forma]) || [];
   }
 
   function fieldOptionsForPiece(pieceId){
-    const p=data.pieces.find(x=>x.id===pieceId);
-    return (p?.forma && data.options.camposPorForma[p.forma]) || data.options.camposGenerales || ["Otro"];
+    const catalog=fieldCatalogForPiece(pieceId);
+    return [...catalog.map(x=>x.nombre),"Otro"];
   }
 
   function refreshDesignFieldSelect(pieceId,current=""){
@@ -370,7 +388,7 @@
     const fields=data.fields.filter(f=>f.piece_id===pieceId);
     el.innerHTML="";
     const blank=document.createElement("option");
-    blank.value=""; blank.textContent=fields.length?"Seleccionar campo…":"Primero agregá un campo decorativo";
+    blank.value=""; blank.textContent=fields.length?"Seleccionar campo…":"Primero marcá un campo decorativo en la pieza";
     el.appendChild(blank);
     fields.forEach(f=>{
       const o=document.createElement("option");
@@ -379,12 +397,54 @@
     el.value=fields.some(f=>f.id===current)?current:"";
   }
 
+  function renderFieldPresetSelector(pieceId){
+    const box=$("fieldPresetSelector"); if(!box)return;
+    const p=data.pieces.find(x=>x.id===pieceId);
+    const catalog=fieldCatalogForPiece(pieceId);
+    if(!p?.forma){
+      box.innerHTML='<p class="design-list-help">Seleccioná primero la forma primaria de la pieza para ver sus campos decorativos posibles.</p>';
+      return;
+    }
+    if(!catalog.length){
+      box.innerHTML='<p class="design-list-help">No hay campos predeterminados para esta forma. Podés usar “+ Otro campo”.</p>';
+      return;
+    }
+    const existing=data.fields.filter(f=>f.piece_id===pieceId);
+    box.innerHTML='<div class="field-preset-title">Campos posibles para <strong>'+esc(p.forma)+'</strong></div><div class="field-preset-grid">'+catalog.map(c=>{
+      const checked=existing.some(f=>f.catalog_code===c.codigo || (f.nombre===c.nombre && !f.nombre_otro));
+      return '<label class="field-preset-chip"><input type="checkbox" data-field-preset="'+esc(c.codigo)+'" '+(checked?'checked':'')+'> <span><b>'+esc(c.codigo)+'</b>'+esc(c.nombre)+'</span></label>';
+    }).join("")+'</div>';
+    box.querySelectorAll("[data-field-preset]").forEach(input=>input.addEventListener("change",()=>{
+      const item=catalog.find(c=>c.codigo===input.dataset.fieldPreset);if(!item)return;
+      const existingField=data.fields.find(f=>f.piece_id===pieceId && (f.catalog_code===item.codigo || (f.nombre===item.nombre && !f.nombre_otro)));
+      if(input.checked){
+        if(!existingField){
+          const id=nextId("MR-C",data.fields);
+          data.fields.push({id,piece_id:pieceId,catalog_code:item.codigo,nombre:item.nombre,nombre_otro:"",observaciones:"",updated_at:nowIso()});
+          saveData();toast(item.codigo+" agregado");
+        }else if(!existingField.catalog_code){
+          existingField.catalog_code=item.codigo;existingField.updated_at=nowIso();saveData();
+        }
+      }else{
+        if(existingField){
+          if(data.designs.some(d=>d.field_id===existingField.id)){
+            input.checked=true;toast("No se puede quitar: hay diseños vinculados");
+            return;
+          }
+          data.fields=data.fields.filter(f=>f.id!==existingField.id);saveData();toast(item.codigo+" quitado");
+        }
+      }
+      renderPieceFieldsEditor(pieceId);
+    }));
+  }
+
   async function renderPieceFieldsEditor(pieceId){
     const box=$("pieceFieldsEditor"); if(!box)return;
+    renderFieldPresetSelector(pieceId);
     const fields=data.fields.filter(f=>f.piece_id===pieceId);
     box.innerHTML="";
     if(!fields.length){
-      box.innerHTML='<p class="design-list-help">Todavía no hay campos decorativos registrados para esta pieza.</p>';
+      box.innerHTML='<p class="design-list-help">Marcá arriba los campos que realmente estén decorados en esta pieza.</p>';
       return;
     }
     const allowed=fieldOptionsForPiece(pieceId);
@@ -393,7 +453,7 @@
       const options=["",...allowed].filter((v,i,a)=>a.indexOf(v)===i).map(v=>'<option value="'+esc(v)+'" '+(v===f.nombre?'selected':'')+'>'+(v||"Seleccionar…")+'</option>').join("");
       const linked=data.designs.filter(d=>d.field_id===f.id);
       row.innerHTML=`
-        <div class="field-row-head"><strong>${esc(f.id)}</strong><span>${linked.length} diseño(s) vinculado(s)</span></div>
+        <div class="field-row-head"><strong>${esc(f.id)}${f.catalog_code?" · "+esc(f.catalog_code):""}</strong><span>${linked.length} diseño(s) vinculado(s)</span></div>
         <div class="field-row-grid">
           <label>Sector / campo<select data-field-name="${esc(f.id)}">${options}</select></label>
           <label class="${f.nombre==="Otro"?"":"hidden"}" data-field-other-wrap="${esc(f.id)}">Otro campo<input data-field-other="${esc(f.id)}" value="${esc(f.nombre_otro||"")}"></label>
@@ -405,14 +465,16 @@
 
     box.querySelectorAll("[data-field-name]").forEach(el=>el.addEventListener("change",()=>{
       const f=data.fields.find(x=>x.id===el.dataset.fieldName);if(!f)return;
-      f.nombre=el.value;if(f.nombre!=="Otro")f.nombre_otro="";f.updated_at=nowIso();saveData();
-      // mantener copias desnormalizadas para compatibilidad con exportaciones previas
+      f.nombre=el.value;if(f.nombre!=="Otro")f.nombre_otro="";
+      const catalog=fieldCatalogForPiece(pieceId).find(c=>c.nombre===f.nombre);
+      f.catalog_code=catalog?.codigo||"";
+      f.updated_at=nowIso();
       data.designs.filter(d=>d.field_id===f.id).forEach(d=>{d.campo_decorativo=f.nombre;d.campo_otro=f.nombre_otro||"";});
       saveData();renderPieceFieldsEditor(pieceId);
     }));
     box.querySelectorAll("[data-field-other]").forEach(el=>el.addEventListener("change",()=>{
       const f=data.fields.find(x=>x.id===el.dataset.fieldOther);if(!f)return;
-      f.nombre_otro=el.value.trim();f.updated_at=nowIso();
+      f.nombre_otro=el.value.trim();f.catalog_code="";f.updated_at=nowIso();
       data.designs.filter(d=>d.field_id===f.id).forEach(d=>{d.campo_decorativo=f.nombre;d.campo_otro=f.nombre_otro||"";});
       saveData();
     }));
@@ -430,7 +492,7 @@
   $("addFieldBtn").onclick=()=>{
     const pieceId=selectedPieceId;if(!pieceId)return;
     const id=nextId("MR-C",data.fields);
-    data.fields.push({id,piece_id:pieceId,nombre:"",nombre_otro:"",observaciones:"",updated_at:nowIso()});
+    data.fields.push({id,piece_id:pieceId,catalog_code:"",nombre:"Otro",nombre_otro:"",observaciones:"",updated_at:nowIso()});
     saveData();renderPieceFieldsEditor(pieceId);toast("Nuevo campo creado: "+id);
   };
 
