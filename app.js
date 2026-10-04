@@ -677,32 +677,24 @@
 
   function renderTechniqueChecks(selected=[]){
     const box=$("techniqueChecks");box.innerHTML="";
-    data.options.tecnicas.forEach(t=>{const lab=document.createElement("label");lab.innerHTML=`<input type="checkbox" value="${esc(t)}"> ${esc(t)}`;const input=lab.querySelector("input");input.checked=selected.includes(t);input.onchange=setOtherVisibility;box.appendChild(lab);});
-  }
-
-  function loadDesignForm(id){
-    const d=data.designs.find(x=>x.id===id);if(!d)return;selectedDesignId=id;
-    const field=data.fields.find(f=>f.id===d.field_id);
-    refreshPieceSelect();$("designFormTitle").textContent=d.id;$("d_id").value=d.id;$("d_ref").value=d.ref_original||"";$("d_piece").value=d.piece_id||"";refreshDesignFieldSelect(d.piece_id,d.field_id||"");$("d_simetria").value=field?.clase_simetria||d.clase_simetria||"";$("d_esquema").value=(field?.esquemas&&field.esquemas.length)?field.esquemas.join(" | "):(d.esquema||"");$("d_colores").value=field?.colores||d.colores||"";$("d_observaciones").value=d.observaciones||"";$("d_tecnica_otro").value=field?.tecnica_otro||d.tecnica_otro||"";renderTechniqueChecks((field?.tecnicas&&field.tecnicas.length)?field.tecnicas:(d.tecnicas||[]));$("d_campo_legacy").value=d.campo_decorativo?([d.campo_decorativo,d.campo_otro].filter(Boolean).join(" · ")):"";$("d_campo_legacy_wrap").classList.toggle("hidden",!!d.field_id||!d.campo_decorativo);setOtherVisibility();previewFile("design:"+id,"designImagePreview");renderDesignList();
-    bindPasteZone($("designImagePreview"),id+"-diseno",async file=>{
-      await putFile("design:"+id,file);
-      d.design_file_name=file.name;d.updated_at=nowIso();saveData();
-      await previewFile("design:"+id,"designImagePreview");
-      toast("Dibujo pegado en "+id);
+    data.options.tecnicas.forEach(t=>{
+      const lab=document.createElement("label");
+      lab.innerHTML=`<input type="checkbox" value="${esc(t)}"> ${esc(t)}`;
+      const input=lab.querySelector("input");
+      input.checked=selected.includes(t);
+      input.onchange=()=>{
+        setOtherVisibility();
+        autosaveCurrentFieldAnalysis();
+      };
+      box.appendChild(lab);
     });
   }
-  $("d_piece").onchange=()=>refreshDesignFieldSelect($("d_piece").value,"");
-  $("designForm").onsubmit=async e=>{
-    e.preventDefault();const d=data.designs.find(x=>x.id===selectedDesignId);if(!d)return;
-    const selectedField=data.fields.find(f=>f.id===$("d_field").value);
-    if(!selectedField){toast("Seleccioná un campo decorativo");return;}
-    const duplicate=data.designs.find(x=>x.id!==d.id && x.field_id===selectedField.id);
-    if(duplicate){toast("Ese campo ya tiene el dibujo "+duplicate.id);return;}
-    const previousFieldId=d.field_id||"";
+
+  function writeFieldAnalysisFromForm(field, design=null){
+    if(!field)return;
     const techniques=[...document.querySelectorAll('#techniqueChecks input:checked')].map(x=>x.value);
     const schemes=$("d_esquema").value.split("|").map(x=>x.trim()).filter(Boolean);
-    Object.assign(selectedField,{
-      design_id:d.id,
+    Object.assign(field,{
       tecnicas:techniques,
       tecnica_otro:$("d_tecnica_otro").value.trim(),
       esquemas:schemes,
@@ -710,20 +702,142 @@
       colores:$("d_colores").value.trim(),
       updated_at:nowIso()
     });
+    if(design){
+      Object.assign(design,{
+        campo_decorativo:field.nombre||"",
+        campo_otro:field.nombre_otro||"",
+        clase_simetria:field.clase_simetria,
+        tecnicas:[...field.tecnicas],
+        tecnica_otro:field.tecnica_otro,
+        esquema:field.esquemas.join(" | "),
+        colores:field.colores,
+        updated_at:nowIso()
+      });
+    }
+  }
+
+  function loadFieldAnalysisIntoControls(field, design=null){
+    $("d_simetria").value=field?.clase_simetria||design?.clase_simetria||"";
+    $("d_esquema").value=(field?.esquemas&&field.esquemas.length)?field.esquemas.join(" | "):(design?.esquema||"");
+    $("d_colores").value=field?.colores||design?.colores||"";
+    $("d_tecnica_otro").value=field?.tecnica_otro||design?.tecnica_otro||"";
+    renderTechniqueChecks((field?.tecnicas&&field.tecnicas.length)?field.tecnicas:(design?.tecnicas||[]));
+    setOtherVisibility();
+  }
+
+  function autosaveCurrentFieldAnalysis(){
+    const d=data.designs.find(x=>x.id===selectedDesignId);
+    const fieldId=$("d_field")?.dataset.currentFieldId || d?.field_id || "";
+    const field=data.fields.find(f=>f.id===fieldId);
+    if(!field)return;
+    writeFieldAnalysisFromForm(field,d&&d.field_id===field.id?d:null);
+    saveData();
+  }
+
+  function loadDesignForm(id){
+    const d=data.designs.find(x=>x.id===id);if(!d)return;selectedDesignId=id;
+    const field=data.fields.find(f=>f.id===d.field_id);
+    refreshPieceSelect();
+    $("designFormTitle").textContent=d.id;
+    $("d_id").value=d.id;
+    $("d_ref").value=d.ref_original||"";
+    $("d_piece").value=d.piece_id||"";
+    refreshDesignFieldSelect(d.piece_id,d.field_id||"");
+    $("d_field").dataset.currentFieldId=d.field_id||"";
+    loadFieldAnalysisIntoControls(field,d);
+    $("d_observaciones").value=d.observaciones||"";
+    $("d_campo_legacy").value=d.campo_decorativo?([d.campo_decorativo,d.campo_otro].filter(Boolean).join(" · ")):"";
+    $("d_campo_legacy_wrap").classList.toggle("hidden",!!d.field_id||!d.campo_decorativo);
+    previewFile("design:"+id,"designImagePreview");
+    renderDesignList();
+    bindPasteZone($("designImagePreview"),id+"-diseno",async file=>{
+      await putFile("design:"+id,file);
+      d.design_file_name=file.name;d.updated_at=nowIso();saveData();
+      await previewFile("design:"+id,"designImagePreview");
+      toast("Dibujo pegado en "+id);
+    });
+  }
+
+  $("d_piece").onchange=()=>{
+    const d=data.designs.find(x=>x.id===selectedDesignId);
+    if(d?.field_id){
+      $("d_piece").value=d.piece_id||"";
+      toast("La pieza se define por el campo decorativo vinculado");
+      return;
+    }
+    refreshDesignFieldSelect($("d_piece").value,"");
+    $("d_field").dataset.currentFieldId="";
+    loadFieldAnalysisIntoControls(null,d);
+  };
+
+  $("d_field").onchange=()=>{
+    const d=data.designs.find(x=>x.id===selectedDesignId);if(!d)return;
+    const newFieldId=$("d_field").value;
+    const previousFieldId=$("d_field").dataset.currentFieldId || d.field_id || "";
+
+    // Guardar primero los valores del campo que se estaba editando.
+    if(previousFieldId){
+      const previousField=data.fields.find(f=>f.id===previousFieldId);
+      if(previousField){
+        writeFieldAnalysisFromForm(previousField,d.field_id===previousFieldId?d:null);
+        saveData();
+      }
+    }
+
+    if(!newFieldId){
+      $("d_field").dataset.currentFieldId="";
+      loadFieldAnalysisIntoControls(null,d);
+      return;
+    }
+
+    const newField=data.fields.find(f=>f.id===newFieldId);
+    if(!newField)return;
+
+    const linkedDrawing=data.designs.find(x=>x.field_id===newFieldId);
+    if(linkedDrawing && linkedDrawing.id!==d.id){
+      selectedDesignId=linkedDrawing.id;
+      loadDesignForm(linkedDrawing.id);
+      toast("Se abrió "+linkedDrawing.id+" · "+fieldLabel(newField));
+      return;
+    }
+
+    // Un MR-D ya vinculado a un campo no se reutiliza para otro campo.
+    if(d.field_id && d.field_id!==newFieldId){
+      $("d_field").value=d.field_id;
+      $("d_field").dataset.currentFieldId=d.field_id;
+      const originalField=data.fields.find(f=>f.id===d.field_id);
+      loadFieldAnalysisIntoControls(originalField,d);
+      toast("Cada MR-D representa un solo campo. Creá/abrí el dibujo del otro campo.");
+      return;
+    }
+
+    $("d_field").dataset.currentFieldId=newFieldId;
+    loadFieldAnalysisIntoControls(newField,d);
+  };
+
+  $("d_simetria").onchange=autosaveCurrentFieldAnalysis;
+  $("d_esquema").onblur=autosaveCurrentFieldAnalysis;
+  $("d_colores").onblur=autosaveCurrentFieldAnalysis;
+  $("d_tecnica_otro").onblur=autosaveCurrentFieldAnalysis;
+  $("designForm").onsubmit=async e=>{
+    e.preventDefault();const d=data.designs.find(x=>x.id===selectedDesignId);if(!d)return;
+    const selectedField=data.fields.find(f=>f.id===$("d_field").value);
+    if(!selectedField){toast("Seleccioná un campo decorativo");return;}
+    const duplicate=data.designs.find(x=>x.id!==d.id && x.field_id===selectedField.id);
+    if(duplicate){toast("Ese campo ya tiene el dibujo "+duplicate.id);return;}
+    const previousFieldId=d.field_id||"";
+    selectedField.design_id=d.id;
+    writeFieldAnalysisFromForm(selectedField,d);
     Object.assign(d,{
       ref_original:$("d_ref").value.trim(),
       piece_id:selectedField.piece_id,
       field_id:selectedField.id,
       campo_decorativo:selectedField.nombre||"",
       campo_otro:selectedField.nombre_otro||"",
-      clase_simetria:selectedField.clase_simetria,
-      tecnicas:[...selectedField.tecnicas],
-      tecnica_otro:selectedField.tecnica_otro,
-      esquema:selectedField.esquemas.join(" | "),
-      colores:selectedField.colores,
       observaciones:$("d_observaciones").value.trim(),
       updated_at:nowIso()
     });
+    $("d_field").dataset.currentFieldId=selectedField.id;
     if(previousFieldId && previousFieldId!==selectedField.id){
       const previousField=data.fields.find(f=>f.id===previousFieldId);
       if(previousField?.design_id===d.id) previousField.design_id="";
