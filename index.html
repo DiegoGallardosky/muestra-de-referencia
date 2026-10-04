@@ -105,6 +105,13 @@
               <button id="removePiecePhoto" type="button" class="danger-link">Quitar fotografía</button>
               <div id="piecePhotoPreview" class="media-preview paste-target" tabindex="0" role="button" aria-label="Pegar fotografía de la pieza con Control V"></div>
             </div>
+            <section class="span-2 field-manager">
+              <div class="field-manager-head">
+                <div><strong>Campos decorativos de la pieza</strong><small>Una misma pieza puede tener uno o varios campos decorativos. Cada campo recibe un ID propio.</small></div>
+                <button id="addFieldBtn" type="button" class="mini">+ Campo decorativo</button>
+              </div>
+              <div id="pieceFieldsEditor" class="piece-fields-editor"></div>
+            </section>
             <section class="span-2 piece-design-editor">
               <div class="piece-design-editor-head">
                 <div><strong>Dibujos de los diseños vinculados</strong><small>Adjuntá o reemplazá el dibujo de cada diseño asociado a esta pieza.</small></div>
@@ -126,8 +133,8 @@
             <label>ID de diseño<input id="d_id" readonly></label>
             <label>Referencia original<input id="d_ref"></label>
             <label>Pieza vinculada<select id="d_piece"></select></label>
-            <label>Campo decorativo<select id="d_campo"></select></label>
-            <label id="d_campo_otro_wrap" class="hidden">Otro campo<input id="d_campo_otro"></label>
+            <label>Campo decorativo<select id="d_field"></select><small>Se selecciona entre los campos registrados para la pieza.</small></label>
+            <label id="d_campo_legacy_wrap" class="hidden">Campo anterior<input id="d_campo_legacy" readonly></label>
             <label>Clase de simetría<select id="d_simetria"></select></label>
             <fieldset class="span-2"><legend>Técnica(s)</legend><div id="techniqueChecks" class="check-grid"></div></fieldset>
             <label id="d_tecnica_otro_wrap" class="span-2 hidden">Otra técnica<input id="d_tecnica_otro"></label>
