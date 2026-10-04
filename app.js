@@ -1,6 +1,7 @@
 (() => {
   const SEED = window.MR_SEED;
   const STORE_KEY = "mr_reference_data_v1";
+  const HISTORY_KEY = "mr_reference_history_v1";
   const DB_NAME = "muestra_referencia_media";
   const DB_STORE = "files";
 
@@ -25,6 +26,14 @@
     return d;
   }
   function saveData(){
+    try{
+      const previous=localStorage.getItem(STORE_KEY);
+      if(previous){
+        const history=JSON.parse(localStorage.getItem(HISTORY_KEY)||"[]");
+        history.unshift({saved_at:nowIso(),data:JSON.parse(previous)});
+        localStorage.setItem(HISTORY_KEY,JSON.stringify(history.slice(0,10)));
+      }
+    }catch(e){}
     localStorage.setItem(STORE_KEY, JSON.stringify(data));
     refreshStats();
   }
