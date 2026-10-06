@@ -121,6 +121,33 @@
       }
     });
 
+    // Limpieza de placeholders heredados del archivo maestro inicial.
+    // No se consideran registros reales los MR-D que solo conservan una
+    // referencia original o una pieza preasignada, pero no tienen campo,
+    // imagen ni variables analíticas cargadas.
+    const removedPlaceholderIds=[];
+    d.designs=d.designs.filter(des=>{
+      if(des.field_id) return true;
+      const substantive=!!(
+        des.design_file_name ||
+        des.esquema ||
+        des.clase_simetria ||
+        des.colores ||
+        des.observaciones ||
+        des.campo_decorativo ||
+        des.campo_otro ||
+        des.tecnica_otro ||
+        (des.tecnicas||[]).length
+      );
+      if(!substantive) removedPlaceholderIds.push(des.id);
+      return substantive;
+    });
+    if(removedPlaceholderIds.length){
+      d.fields.forEach(f=>{
+        if(removedPlaceholderIds.includes(f.design_id)) f.design_id="";
+      });
+    }
+
     d.schema_version=5;
     return window.MR_MIGRATIONS?.upgrade ? window.MR_MIGRATIONS.upgrade(d) : d;
   }
@@ -327,6 +354,16 @@
     return [d.esquema||"Esquema pendiente",d.clase_simetria||""].filter(Boolean).join(" · ");
   }
 
+  function isVisibleDrawing(d){
+    if(!d)return false;
+    const validField=!!(d.field_id && data.fields.some(f=>f.id===d.field_id));
+    return validField || !!(
+      d.design_file_name || d.esquema || d.clase_simetria || d.colores ||
+      d.observaciones || d.campo_decorativo || d.campo_otro ||
+      d.tecnica_otro || (d.tecnicas||[]).length
+    );
+  }
+
   // Catalog
   $("showPiecesBtn").onclick=()=>{currentViewMode="pieces";$("showPiecesBtn").classList.add("active");$("showDesignsBtn").classList.remove("active");renderCatalog();};
   $("showDesignsBtn").onclick=()=>{currentViewMode="designs";$("showDesignsBtn").classList.add("active");$("showPiecesBtn").classList.remove("active");renderCatalog();};
@@ -345,7 +382,7 @@
     const grid=$("catalogGrid"); grid.innerHTML="";
     const q=$("searchInput").value.trim().toLowerCase();
     const ff=$("filterForm").value, fs=$("filterSite").value;
-    const items=currentViewMode==="pieces"?orderedPieces():[...data.designs].sort((a,b)=>numericId(a.id,"MR-D")-numericId(b.id,"MR-D"));
+    const items=currentViewMode==="pieces"?orderedPieces():data.designs.filter(isVisibleDrawing).sort((a,b)=>numericId(a.id,"MR-D")-numericId(b.id,"MR-D"));
     const filtered=items.filter(item=>{
       let hay="";
       if(currentViewMode==="pieces"){
@@ -513,7 +550,7 @@
 
   function renderDesignList(){
     const q=$("designSearch").value?.toLowerCase()||"";const box=$("designList");box.innerHTML="";
-    [...data.designs].sort((a,b)=>numericId(a.id,"MR-D")-numericId(b.id,"MR-D")).filter(d=>[d.id,d.ref_original,d.piece_id,d.esquema,d.clase_simetria].join(" ").toLowerCase().includes(q)).forEach(d=>{
+    data.designs.filter(isVisibleDrawing).sort((a,b)=>numericId(a.id,"MR-D")-numericId(b.id,"MR-D")).filter(d=>[d.id,d.ref_original,d.piece_id,d.esquema,d.clase_simetria].join(" ").toLowerCase().includes(q)).forEach(d=>{
       const row=document.createElement("div");row.className="record-row"+(d.id===selectedDesignId?" active":"");
       row.innerHTML=`<strong>${esc(d.id)}</strong><small>${esc(designLabel(d)||d.ref_original||"pendiente")}</small>`;row.onclick=()=>{selectedDesignId=d.id;renderDesignList();loadDesignForm(d.id);};box.appendChild(row);
     });
@@ -1159,6 +1196,9 @@
           await repairIdSequences();
         }else if(cmd.type==="renumber_drawings"){
           await renumberDrawingsOnly();
+        }else if(cmd.type==="cleanup_renumber_drawings"){
+          await cleanupEmptyOrphanDrawings();
+          await renumberDrawingsOnly();
         }
         data.meta.applied_commands=data.meta.applied_commands||[];
         if(!data.meta.applied_commands.includes(cmd.id))data.meta.applied_commands.push(cmd.id);
@@ -1178,9 +1218,9 @@
       if(linkedField){ keep.push(d); continue; }
       const hasFile=!!(await getFile("design:"+d.id));
       const hasData=!!(
-        d.design_file_name || d.ref_original || d.esquema || d.clase_simetria ||
-        d.colores || d.observaciones || d.campo_decorativo ||
-        (d.tecnicas||[]).length || hasFile
+        d.design_file_name || d.esquema || d.clase_simetria ||
+        d.colores || d.observaciones || d.campo_decorativo || d.campo_otro ||
+        d.tecnica_otro || (d.tecnicas||[]).length || hasFile
       );
       if(hasData){ keep.push(d); continue; }
       removed++;
@@ -1365,9 +1405,11 @@
 
   if($("runAudit")) $("runAudit").onclick=async()=>{
     const removed=await cleanupEmptyOrphanDrawings();
+    const renumbered=await renumberDrawingsOnly();
     const r=auditDatabase();
     const box=$("auditSummary");
-    box.innerHTML=(removed?'<em>Se eliminaron automáticamente '+removed+' dibujo(s) vacío(s) sin campo.</em>':'')+
+    box.innerHTML=(removed?'<em>Se eliminaron '+removed+' dibujo(s) vacío(s) sin información real.</em>':'')+
+      (renumbered?'<em>Se renumeraron '+renumbered+' dibujo(s) para dejar la secuencia MR-D continua.</em>':'')+
       '<strong>'+r.issues.length+' problema(s) crítico(s)</strong><span>'+r.warnings.length+' advertencia(s)</span>'+
       (r.issues.length?'<details><summary>Ver problemas</summary><ul>'+r.issues.slice(0,50).map(x=>'<li>'+esc(x)+'</li>').join("")+'</ul></details>':'')+
       (r.warnings.length?'<details><summary>Ver advertencias</summary><ul>'+r.warnings.slice(0,50).map(x=>'<li>'+esc(x)+'</li>').join("")+'</ul></details>':'')+
