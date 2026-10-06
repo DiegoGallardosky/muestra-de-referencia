@@ -16,7 +16,8 @@ window.MR_MIGRATIONS = (() => {
   // {id:"move-piece-2026-10-04-01", type:"move_piece", piece:"MR-P0004", position:24}
   const commands = [
     {id:"reindex-linked-drawings-2026-10-04-01", type:"reindex_ids"},
-    {id:"renumber-drawings-2026-10-06-01", type:"renumber_drawings"}
+    {id:"renumber-drawings-2026-10-06-01", type:"renumber_drawings"},
+    {id:"cleanup-renumber-drawings-2026-10-06-02", type:"cleanup_renumber_drawings"}
   ];
 
   function numericSuffix(value){
