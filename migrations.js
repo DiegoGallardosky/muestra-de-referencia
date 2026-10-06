@@ -15,7 +15,8 @@ window.MR_MIGRATIONS = (() => {
   // Example:
   // {id:"move-piece-2026-10-04-01", type:"move_piece", piece:"MR-P0004", position:24}
   const commands = [
-    {id:"reindex-linked-drawings-2026-10-04-01", type:"reindex_ids"}
+    {id:"reindex-linked-drawings-2026-10-04-01", type:"reindex_ids"},
+    {id:"renumber-drawings-2026-10-06-01", type:"renumber_drawings"}
   ];
 
   function numericSuffix(value){
