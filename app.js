@@ -191,6 +191,40 @@
     await putFile(newKey,file);
     await deleteFile(oldKey);
   }
+  async function getAllMediaEntries(){
+    const db=await openDb();
+    return new Promise((resolve,reject)=>{
+      const tx=db.transaction(DB_STORE,"readonly");
+      const store=tx.objectStore(DB_STORE);
+      const req=store.openCursor();
+      const out=[];
+      req.onsuccess=e=>{
+        const cur=e.target.result;
+        if(!cur){resolve(out);return;}
+        out.push([cur.key,cur.value]);
+        cur.continue();
+      };
+      req.onerror=()=>reject(req.error);
+    });
+  }
+
+  function blobToDataUrl(blob){
+    return new Promise((resolve,reject)=>{
+      const r=new FileReader();
+      r.onload=()=>resolve(r.result);
+      r.onerror=()=>reject(r.error);
+      r.readAsDataURL(blob);
+    });
+  }
+
+  function dataUrlToFile(dataUrl,name,type){
+    const [meta,b64]=String(dataUrl).split(",");
+    const mime=type || (meta.match(/data:([^;]+)/)?.[1]||"application/octet-stream");
+    const bin=atob(b64||"");
+    const bytes=new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
+    return new File([bytes],name||"archivo",{type:mime});
+  }
   async function previewFile(key, containerId){
     const box=$(containerId); if(!box) return;
     box.innerHTML='<span class="placeholder">Sin archivo</span>';
@@ -311,7 +345,7 @@
     const grid=$("catalogGrid"); grid.innerHTML="";
     const q=$("searchInput").value.trim().toLowerCase();
     const ff=$("filterForm").value, fs=$("filterSite").value;
-    const items=currentViewMode==="pieces"?orderedPieces():data.designs;
+    const items=currentViewMode==="pieces"?orderedPieces():[...data.designs].sort((a,b)=>numericId(a.id,"MR-D")-numericId(b.id,"MR-D"));
     const filtered=items.filter(item=>{
       let hay="";
       if(currentViewMode==="pieces"){
@@ -479,7 +513,7 @@
 
   function renderDesignList(){
     const q=$("designSearch").value?.toLowerCase()||"";const box=$("designList");box.innerHTML="";
-    data.designs.filter(d=>[d.id,d.ref_original,d.piece_id,d.esquema,d.clase_simetria].join(" ").toLowerCase().includes(q)).forEach(d=>{
+    [...data.designs].sort((a,b)=>numericId(a.id,"MR-D")-numericId(b.id,"MR-D")).filter(d=>[d.id,d.ref_original,d.piece_id,d.esquema,d.clase_simetria].join(" ").toLowerCase().includes(q)).forEach(d=>{
       const row=document.createElement("div");row.className="record-row"+(d.id===selectedDesignId?" active":"");
       row.innerHTML=`<strong>${esc(d.id)}</strong><small>${esc(designLabel(d)||d.ref_original||"pendiente")}</small>`;row.onclick=()=>{selectedDesignId=d.id;renderDesignList();loadDesignForm(d.id);};box.appendChild(row);
     });
@@ -991,10 +1025,98 @@
     download("muestra_referencia_diccionario.csv",["VARIABLE,TIPO,DESCRIPCION,CODIFICACION",...rows.map(r=>r.map(csvEsc).join(","))].join("\n"));
   };
   $("exportJson").onclick=()=>download("muestra_referencia_respaldo.json",JSON.stringify(data,null,2),"application/json;charset=utf-8");
+
+  if($("exportFullBackup")) $("exportFullBackup").onclick=async()=>{
+    const status=$("fullBackupStatus"); if(status)status.textContent="Preparando fotografías y dibujos…";
+    try{
+      const entries=await getAllMediaEntries();
+      const media=[];
+      for(const [key,file] of entries){
+        media.push({key,name:file.name||"archivo",type:file.type||"",data:await blobToDataUrl(file)});
+      }
+      const payload={format:"muestra-referencia-full-backup",version:1,created_at:nowIso(),data,media};
+      download("muestra_referencia_respaldo_completo.json",JSON.stringify(payload),"application/json;charset=utf-8");
+      if(status)status.textContent="Respaldo completo creado: "+media.length+" archivo(s).";
+    }catch(err){
+      console.error(err); if(status)status.textContent="No se pudo crear el respaldo completo.";
+    }
+  };
+
+  if($("importFullBackup")) $("importFullBackup").onchange=async e=>{
+    const f=e.target.files?.[0];if(!f)return;
+    const status=$("fullBackupStatus"); if(status)status.textContent="Importando respaldo…";
+    try{
+      const payload=JSON.parse(await f.text());
+      if(payload?.format!=="muestra-referencia-full-backup" || !payload.data) throw new Error("Formato de respaldo completo inválido");
+      data=migrateData(payload.data);
+      for(const item of payload.media||[]){
+        await putFile(item.key,dataUrlToFile(item.data,item.name,item.type));
+      }
+      saveData();refreshPieceSelect();renderPieceList();renderDesignList();renderCatalog();
+      if(selectedPieceId && data.pieces.some(p=>p.id===selectedPieceId))loadPieceForm(selectedPieceId);
+      else if(data.pieces[0])loadPieceForm(data.pieces[0].id);
+      if(status)status.textContent="Importación completa: "+(payload.media||[]).length+" archivo(s).";
+      toast("Respaldo completo importado");
+    }catch(err){
+      console.error(err);if(status)status.textContent="Error: "+err.message;
+    }
+    e.target.value="";
+  };
+
   $("importJson").onchange=async e=>{
     const f=e.target.files[0];if(!f)return;
     try{const obj=JSON.parse(await f.text());if(!obj.pieces||!obj.designs)throw new Error("Formato inválido");data=migrateData(obj);saveData();refreshPieceSelect();renderPieceList();renderDesignList();renderCatalog();toast("Respaldo importado y actualizado");}catch(err){alert("No se pudo importar el archivo: "+err.message);}e.target.value="";
   };
+
+  async function renumberDrawingsOnly(){
+    const pieceRank=new Map(orderedPieces().map((p,i)=>[p.uid||p.id,i]));
+    const fieldRank=new Map();
+    [...data.fields]
+      .sort((a,b)=>{
+        const pa=pieceRank.get(a.piece_uid||data.pieces.find(p=>p.id===a.piece_id)?.uid||a.piece_id)??999999;
+        const pb=pieceRank.get(b.piece_uid||data.pieces.find(p=>p.id===b.piece_id)?.uid||b.piece_id)??999999;
+        if(pa!==pb)return pa-pb;
+        const ca=+(String(a.catalog_code||"").match(/\d+/)?.[0]||999);
+        const cb=+(String(b.catalog_code||"").match(/\d+/)?.[0]||999);
+        if(ca!==cb)return ca-cb;
+        return numericId(a.id,"MR-C")-numericId(b.id,"MR-C");
+      })
+      .forEach((f,i)=>fieldRank.set(f.uid||f.id,i));
+
+    const ordered=[...data.designs].sort((a,b)=>{
+      const fa=data.fields.find(f=>f.id===a.field_id || (a.field_uid&&f.uid===a.field_uid));
+      const fb=data.fields.find(f=>f.id===b.field_id || (b.field_uid&&f.uid===b.field_uid));
+      const ra=fa?(fieldRank.get(fa.uid||fa.id)??999999):999999;
+      const rb=fb?(fieldRank.get(fb.uid||fb.id)??999999):999999;
+      if(ra!==rb)return ra-rb;
+      return (a.created_order||numericId(a.id,"MR-D"))-(b.created_order||numericId(b.id,"MR-D"));
+    });
+
+    const map=new Map();
+    ordered.forEach((d,i)=>map.set(d.id,"MR-D"+String(i+1).padStart(4,"0")));
+    const moves=[];
+    data.designs.forEach(d=>{
+      const old=d.id,newId=map.get(old);
+      if(old!==newId){
+        moves.push([old,newId]);
+        d.id_history=Array.isArray(d.id_history)?d.id_history:[];
+        if(!d.id_history.includes(old))d.id_history.push(old);
+        if(!d.legacy_id)d.legacy_id=old;
+      }
+    });
+
+    for(const [oldId] of moves) await moveFileKey("design:"+oldId,"tmp-design:"+oldId);
+    data.designs.forEach(d=>{d.id=map.get(d.id)||d.id;});
+    data.fields.forEach(f=>{if(f.design_id)f.design_id=map.get(f.design_id)||f.design_id;});
+    for(const [oldId,newId] of moves) await moveFileKey("tmp-design:"+oldId,"design:"+newId);
+
+    data.designs.sort((a,b)=>numericId(a.id,"MR-D")-numericId(b.id,"MR-D"));
+    selectedDesignId=map.get(selectedDesignId)||selectedDesignId;
+    saveData();
+    renderDesignList();
+    renderCatalog();
+    return moves.length;
+  }
 
   async function movePieceToPosition(pieceId,targetPosition){
     const ordered=orderedPieces();
@@ -1035,6 +1157,8 @@
           if(p && cmd.group){p.sample_group=cmd.group;saveData();}
         }else if(cmd.type==="reindex_ids"){
           await repairIdSequences();
+        }else if(cmd.type==="renumber_drawings"){
+          await renumberDrawingsOnly();
         }
         data.meta.applied_commands=data.meta.applied_commands||[];
         if(!data.meta.applied_commands.includes(cmd.id))data.meta.applied_commands.push(cmd.id);
