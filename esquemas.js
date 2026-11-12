@@ -32,7 +32,12 @@ window.MR_ESQUEMAS = (() => {
     {code:"E27", title:"Acanalado", filename:"e27.svg"},
     {code:"E28", title:"Impresión dactilar", filename:"e28.svg"},
     {code:"E29", title:"Impresión textil", filename:"e29.svg"},
-    {code:"E30", title:"Peinado", filename:"e30.svg"}
+    {code:"E30", title:"Peinado", filename:"e30.svg"},
+    {code:"E31", title:"Corrugado", filename:"e31.svg"},
+    {code:"E32", title:"Familia de agregado al pastillaje", filename:"e32.svg"},
+    {code:"E33", title:"Asas", filename:"e33.svg"},
+    {code:"E34", title:"Bordes", filename:"e34.svg"},
+    {code:"E35", title:"Esquemas animales", filename:"e35.svg"}
   ];
   const publishedKey = code => "scheme:published:" + code;
   const publishedFiles = new Map(published.map(entry => [publishedKey(entry.code), entry.filename]));
