@@ -1,0 +1,349 @@
+window.MR_ESQUEMAS = (() => {
+  const codePattern = /^E\d+[a-z]?$/i;
+  const $ = id => document.getElementById(id);
+
+  const published = [
+    {code:"E1", title:"Cruz del sur", filename:"e1.svg"},
+    {code:"E2", title:"Enrejado", filename:"e2.svg"},
+    {code:"E3", title:"Panel pintado", filename:"e3.svg"},
+    {code:"E4", title:"Líneas verticales", filename:"e4.svg"},
+    {code:"E5", title:"Triángulos", filename:"e5.svg"},
+    {code:"E6", title:"Triángulos complejos", filename:"e6.svg"},
+    {code:"E7", title:"Líneas paralelas con triángulos", filename:"e7.svg"},
+    {code:"E8", title:"Chevrones", filename:"e8.svg"},
+    {code:"E9", title:"Cassette", filename:"e9.svg"},
+    {code:"E10", title:"Rombos", filename:"e10.svg"},
+    {code:"E11", title:"Familia X", filename:"e11.svg"},
+    {code:"E12", title:"Cruz del sur vacía", filename:"e12.svg"},
+    {code:"E13", title:"Cuerpo de reptil", filename:"e13.svg"},
+    {code:"E14", title:"Chevrones verticales", filename:"e14.svg"},
+    {code:"E15", title:"Greca escalonada", filename:"e15.svg"},
+    {code:"E16", title:"Pájaro", filename:"e16.svg"},
+    {code:"E17", title:"Bandas", filename:"e17.svg"},
+    {code:"E18", title:"Piel de quirquincho", filename:"e18.svg"},
+    {code:"E19", title:"Conjunto de rombos complejos", filename:"e19.svg"},
+    {code:"E20", title:"Espigas de trigo", filename:"e20.svg"},
+    {code:"E21", title:"Triángulos encerrados", filename:"e21.svg"},
+    {code:"E22", title:"Opuesto", filename:"e22.svg"},
+    {code:"E23", title:"Flecha abajo", filename:"e23.svg"},
+    {code:"E24", title:"", filename:"e24.svg"},
+    {code:"E25", title:"", filename:"e25.svg"},
+    {code:"E26", title:"", filename:"e26.svg"},
+    {code:"E27", title:"Acanalado", filename:"e27.svg"},
+    {code:"E28", title:"Impresión dactilar", filename:"e28.svg"},
+    {code:"E29", title:"Impresión textil", filename:"e29.svg"},
+    {code:"E30", title:"Peinado", filename:"e30.svg"},
+    {code:"E31", title:"Corrugado", filename:"e31.svg"},
+    {code:"E32", title:"Familia de agregado al pastillaje", filename:"e32.svg"},
+    {code:"E33", title:"Asas", filename:"e33.svg"},
+    {code:"E34", title:"Bordes", filename:"e34.svg"},
+    {code:"E35", title:"Esquemas animales", filename:"e35.svg"},
+    {code:"E36", title:"Esquemas humanos", filename:"e36.svg"},
+    {code:"E37", title:"Esquemas zooantropomorfos", filename:"e37.svg"}
+  ];
+  const publishedKey = code => "scheme:published:" + code;
+  const publishedFiles = new Map(published.map(entry => [publishedKey(entry.code), entry.filename]));
+
+  function withPublished(existing) {
+    const schemes = Array.isArray(existing) ? [...existing] : [];
+    for (const entry of published) {
+      const index = schemes.findIndex(scheme => scheme.code === entry.code || scheme.aliases?.includes(entry.code));
+      const mediaKey = publishedKey(entry.code);
+      if (index === -1) {
+        schemes.push({uid:"published:" + entry.code, code:entry.code, title:entry.title,
+          family:"", criteria:"", aliases:[], mediaKey, revisions:[]});
+      } else if (schemes[index].code === entry.code && !schemes[index].mediaKey) {
+        schemes[index] = {...schemes[index], mediaKey};
+      }
+    }
+    return schemes;
+  }
+
+  function normalizeCode(value) {
+    const code = String(value || "").trim();
+    return codePattern.test(code) ? "E" + code.slice(1).toLowerCase() : "";
+  }
+
+  function recordedCode(value) {
+    const code = String(value || "").trim().match(/^E\d+[a-z]?(?=$|[\s:–—-])/i)?.[0];
+    return normalizeCode(code);
+  }
+
+  function fileCode(name) {
+    const match = name.match(/^(?:esquema[\s_-]*)?e?(\d+[a-z]?)(?=$|[\s_.-])/i);
+    return match ? normalizeCode("E" + match[1]) : "";
+  }
+
+  function mount({ getData, save, getFile, putFile, deleteFile, openField }) {
+    let selected = "";
+    let comparison = new Set();
+    let rendering = 0;
+    let busy = false;
+    const gallery = $("schemeGallery");
+    const form = $("schemeForm");
+    const status = $("schemeStatus");
+
+    const records = () => getData().schemes || [];
+    const sorted = () => [...records()].sort((a, b) => a.code.localeCompare(b.code, "es", {numeric:true}));
+    const active = () => records().find(scheme => scheme.uid === selected);
+    const codes = scheme => [scheme.code, ...(scheme.aliases || [])];
+    const getByCode = code => records().find(scheme => codes(scheme).includes(code));
+
+    function occurrences(scheme) {
+      const accepted = codes(scheme);
+      return getData().fields.filter(field => (field.esquemas || []).some(value => accepted.includes(recordedCode(value))));
+    }
+
+    function button(label, action, style = "secondary") {
+      const element = document.createElement("button");
+      element.type = "button";
+      element.className = style;
+      element.textContent = label;
+      element.onclick = action;
+      return element;
+    }
+
+    function text(tag, value) {
+      const element = document.createElement(tag);
+      element.textContent = value;
+      return element;
+    }
+
+    async function showImage(box, scheme) {
+      box.replaceChildren(text("span", "Sin SVG"));
+      if (!scheme?.mediaKey) return;
+      const file = await getFile(scheme.mediaKey).catch(() => null);
+      if (!box.isConnected || box.dataset.media !== scheme.mediaKey) return;
+      if (!file) {
+        box.replaceChildren(text("span", "SVG pendiente de restaurar"));
+        return;
+      }
+      const image = document.createElement("img");
+      const url = URL.createObjectURL(file);
+      image.alt = scheme.code + (scheme.title ? " · " + scheme.title : "");
+      image.onload = () => URL.revokeObjectURL(url);
+      image.onerror = () => {
+        URL.revokeObjectURL(url);
+        box.replaceChildren(text("span", "No se pudo mostrar el SVG"));
+      };
+      box.replaceChildren(image);
+      image.src = url;
+    }
+
+    function imageBox(scheme) {
+      const box = document.createElement("div");
+      box.className = "scheme-image";
+      box.dataset.media = scheme?.mediaKey || "";
+      if (scheme?.mediaKey) {
+        queueMicrotask(() => showImage(box, scheme));
+      } else {
+        box.append(text("span", "Sin SVG"));
+      }
+      return box;
+    }
+
+    function render() {
+      if (!$("esquemas").classList.contains("active")) return;
+      const query = $("schemeSearch").value.trim().toLowerCase();
+      const available = sorted();
+      comparison = new Set([...comparison].filter(uid => available.some(scheme => scheme.uid === uid)));
+      gallery.replaceChildren();
+      $("compareSchemes").disabled = comparison.size !== 2;
+      const matches = available.filter(scheme => [...codes(scheme), scheme.title, scheme.family].join(" ").toLowerCase().includes(query));
+      if (!matches.length) gallery.append(text("p", available.length ? "Sin coincidencias." : "Cargá tus SVG para iniciar el catálogo."));
+      matches.forEach(scheme => {
+        const card = document.createElement("article");
+        card.className = "scheme-card";
+        card.classList.toggle("selected", scheme.uid === selected);
+        const label = [scheme.code, scheme.title].filter(Boolean).join(" · ");
+        const fields = occurrences(scheme);
+        const pieces = new Set(fields.map(field => field.piece_uid || field.piece_id).filter(Boolean));
+        const pick = document.createElement("label");
+        const check = document.createElement("input");
+        check.type = "checkbox";
+        check.checked = comparison.has(scheme.uid);
+        check.disabled = comparison.size >= 2 && !check.checked;
+        check.onchange = () => {
+          if (check.checked) comparison.add(scheme.uid);
+          else comparison.delete(scheme.uid);
+          render();
+        };
+        pick.append(check, " Seleccionar para comparar");
+        card.append(imageBox(scheme), button(label, () => edit(scheme.uid)), text("small", pieces.size + " piezas · " + fields.length + " campos"), pick);
+        gallery.append(card);
+      });
+    }
+
+    function edit(uid = "") {
+      selected = uid;
+      const scheme = active();
+      rendering += 1;
+      const url = new URL(location.href);
+      if (scheme) url.searchParams.set("esquema", scheme.code);
+      else url.searchParams.delete("esquema");
+      history.replaceState(null, "", url);
+      form.reset();
+      $("schemeEditorTitle").textContent = scheme?.code || "Nuevo esquema";
+      for (const [key, id] of [["code","schemeCode"],["title","schemeTitle"],["family","schemeFamily"],["criteria","schemeCriteria"]]) {
+        $(id).value = scheme?.[key] || "";
+      }
+      const preview = $("schemePreview");
+      preview.replaceChildren(imageBox(scheme));
+      const list = $("schemeOccurrences");
+      list.replaceChildren();
+      for (const field of scheme ? occurrences(scheme) : []) {
+        const item = document.createElement("li");
+        item.append(button([field.piece_id, field.id, field.nombre].filter(Boolean).join(" · "), () => openField(field)));
+        list.append(item);
+      }
+      $("schemeRevisions").replaceChildren(new Option("Seleccionar versión…", ""));
+      (scheme?.revisions || []).forEach((revision, index) => {
+        $("schemeRevisions").add(new Option(revision.date.replace("T"," ").slice(0,16) + " · " + revision.code, String(index)));
+      });
+      $("schemeHistory").hidden = !scheme?.revisions?.length;
+      render();
+    }
+
+    function snapshot(scheme) {
+      const {revisions, ...entry} = scheme;
+      return {...entry, date:new Date().toISOString()};
+    }
+
+    async function commit(schemes, uploadedKeys = []) {
+      try {
+        save(schemes);
+      } catch (error) {
+        await Promise.allSettled(uploadedKeys.map(deleteFile));
+        throw error;
+      }
+    }
+
+    async function storeSvg(file) {
+      const documentSvg = new DOMParser().parseFromString(await file.text(), "image/svg+xml");
+      const root = documentSvg.documentElement;
+      if (root.localName !== "svg" || root.namespaceURI !== "http://www.w3.org/2000/svg" || documentSvg.querySelector("parsererror")) {
+        throw new Error("SVG inválido");
+      }
+      const key = "scheme:" + crypto.randomUUID();
+      await putFile(key, new File([file], file.name, {type:"image/svg+xml"}));
+      return key;
+    }
+
+    async function run(action) {
+      if (busy) return;
+      busy = true;
+      $("schemeSave").disabled = true;
+      $("schemeBulk").disabled = true;
+      status.textContent = "Guardando…";
+      try {
+        status.textContent = await action();
+      } catch (error) {
+        status.textContent = error.message || "No se pudo guardar el catálogo.";
+      } finally {
+        busy = false;
+        $("schemeSave").disabled = false;
+        $("schemeBulk").disabled = false;
+      }
+    }
+
+    form.onsubmit = event => {
+      event.preventDefault();
+      const previous = active();
+      const generation = rendering;
+      const code = normalizeCode($("schemeCode").value);
+      const title = $("schemeTitle").value.trim();
+      const family = $("schemeFamily").value.trim();
+      const criteria = $("schemeCriteria").value.trim();
+      const file = $("schemeFile").files[0];
+      run(async () => {
+        if (!code) throw new Error("Usá un código como E7 o E27a.");
+        const existing = getByCode(code);
+        if (existing && existing.uid !== previous?.uid) throw new Error(code + " ya pertenece a otro esquema.");
+        const mediaKey = file ? await storeSvg(file) : previous?.mediaKey || "";
+        const aliases = [...new Set(previous ? codes(previous).filter(value => value !== code) : [])];
+        const scheme = {
+          uid: previous?.uid || crypto.randomUUID(), code, title, family, criteria, aliases, mediaKey,
+          revisions: previous ? [snapshot(previous), ...(previous.revisions || [])] : []
+        };
+        await commit([...records().filter(item => item.uid !== scheme.uid), scheme], file ? [mediaKey] : []);
+        if (generation === rendering) edit(scheme.uid);
+        else render();
+        return code + " guardado.";
+      });
+    };
+
+    $("schemeBulk").onchange = event => {
+      const files = [...event.target.files];
+      event.target.value = "";
+      run(async () => {
+        const additions = [];
+        const pending = [];
+        for (const file of files) {
+          const code = fileCode(file.name);
+          const previous = code && getByCode(code);
+          if (!code || previous?.mediaKey || additions.some(item => codes(item).includes(code))) {
+            pending.push(file.name);
+            continue;
+          }
+          try {
+            const mediaKey = await storeSvg(file);
+            const scheme = previous
+              ? {...previous, mediaKey, revisions:[snapshot(previous), ...(previous.revisions || [])]}
+              : {uid:crypto.randomUUID(), code, title:"", family:"", criteria:"", aliases:[], mediaKey, revisions:[]};
+            additions.push(scheme);
+          } catch {
+            pending.push(file.name);
+          }
+        }
+        if (additions.length) {
+          const retained = records().filter(item => !additions.some(scheme => scheme.uid === item.uid));
+          await commit([...retained, ...additions], additions.map(scheme => scheme.mediaKey));
+          render();
+        }
+        const result = additions.length + " SVG incorporados.";
+        return pending.length ? result + " Revisá manualmente estos archivos: " + pending.join(", ") : result;
+      });
+    };
+
+    $("restoreScheme").onclick = () => {
+      const previous = active();
+      const value = $("schemeRevisions").value;
+      const revision = value === "" ? null : previous?.revisions?.[Number(value)];
+      if (!revision) return;
+      run(async () => {
+        const {date, ...content} = revision;
+        const restored = {
+          ...content,
+          aliases:[...new Set([...codes(previous), ...codes(content)].filter(code => code !== content.code))],
+          revisions:[snapshot(previous), ...previous.revisions]
+        };
+        await commit(records().map(item => item.uid === restored.uid ? restored : item));
+        edit(restored.uid);
+        return restored.code + " restaurado.";
+      });
+    };
+
+    $("newScheme").onclick = () => { edit(); $("schemeCode").focus(); };
+    $("schemeSearch").oninput = render;
+    $("compareSchemes").onclick = () => {
+      const compare = $("schemeCompareContent");
+      compare.replaceChildren();
+      for (const scheme of sorted().filter(item => comparison.has(item.uid))) {
+        const panel = document.createElement("article");
+        panel.append(text("h3", [scheme.code, scheme.title].filter(Boolean).join(" · ")), imageBox(scheme), text("p", scheme.criteria));
+        compare.append(panel);
+      }
+      $("schemeCompareDialog").showModal();
+    };
+
+    function show(code) {
+      const scheme = getByCode(normalizeCode(code));
+      if (scheme) edit(scheme.uid);
+      else render();
+    }
+
+    return {render, show};
+  }
+
+  return {mount, withPublished, publishedFiles};
+})();
