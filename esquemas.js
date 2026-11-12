@@ -17,7 +17,12 @@ window.MR_ESQUEMAS = (() => {
     {code:"E12", title:"Cruz del sur vacía", filename:"e12.svg"},
     {code:"E13", title:"Cuerpo de reptil", filename:"e13.svg"},
     {code:"E14", title:"Chevrones verticales", filename:"e14.svg"},
-    {code:"E15", title:"Greca escalonada", filename:"e15.svg"}
+    {code:"E15", title:"Greca escalonada", filename:"e15.svg"},
+    {code:"E16", title:"Pájaro", filename:"e16.svg"},
+    {code:"E17", title:"Bandas", filename:"e17.svg"},
+    {code:"E18", title:"Piel de quirquincho", filename:"e18.svg"},
+    {code:"E19", title:"Conjunto de rombos complejos", filename:"e19.svg"},
+    {code:"E20", title:"Espigas de trigo", filename:"e20.svg"}
   ];
   const publishedKey = code => "scheme:published:" + code;
   const publishedFiles = new Map(published.map(entry => [publishedKey(entry.code), entry.filename]));
