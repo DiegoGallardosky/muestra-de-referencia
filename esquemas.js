@@ -2,6 +2,31 @@ window.MR_ESQUEMAS = (() => {
   const codePattern = /^E\d+[a-z]?$/i;
   const $ = id => document.getElementById(id);
 
+  const published = [
+    {code:"E1", title:"Cruz del sur", filename:"e1.svg"},
+    {code:"E2", title:"Enrejado", filename:"e2.svg"},
+    {code:"E3", title:"Panel pintado", filename:"e3.svg"},
+    {code:"E4", title:"Líneas verticales", filename:"e4.svg"},
+    {code:"E5", title:"Triángulos", filename:"e5.svg"}
+  ];
+  const publishedKey = code => "scheme:published:" + code;
+  const publishedFiles = new Map(published.map(entry => [publishedKey(entry.code), entry.filename]));
+
+  function withPublished(existing) {
+    const schemes = Array.isArray(existing) ? [...existing] : [];
+    for (const entry of published) {
+      const index = schemes.findIndex(scheme => scheme.code === entry.code || scheme.aliases?.includes(entry.code));
+      const mediaKey = publishedKey(entry.code);
+      if (index === -1) {
+        schemes.push({uid:"published:" + entry.code, code:entry.code, title:entry.title,
+          family:"", criteria:"", aliases:[], mediaKey, revisions:[]});
+      } else if (schemes[index].code === entry.code && !schemes[index].mediaKey) {
+        schemes[index] = {...schemes[index], mediaKey};
+      }
+    }
+    return schemes;
+  }
+
   function normalizeCode(value) {
     const code = String(value || "").trim();
     return codePattern.test(code) ? "E" + code.slice(1).toLowerCase() : "";
@@ -299,5 +324,5 @@ window.MR_ESQUEMAS = (() => {
     return {render, refreshOptions};
   }
 
-  return {mount};
+  return {mount, withPublished, publishedFiles};
 })();

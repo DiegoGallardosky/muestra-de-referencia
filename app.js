@@ -34,6 +34,7 @@
     d.pieces=Array.isArray(d.pieces)?d.pieces:[];
     d.designs=Array.isArray(d.designs)?d.designs:[];
     d.fields=Array.isArray(d.fields)?d.fields:[];
+    d.schemes=window.MR_ESQUEMAS.withPublished(d.schemes);
     // Mantener los registros cargados, pero actualizar catálogos/opciones del esquema.
     // Esto evita que una base guardada en una versión anterior quede sin los campos
     // predeterminados incorporados posteriormente.
@@ -208,6 +209,16 @@
       req.onsuccess=()=>resolve(req.result||null); req.onerror=()=>reject(req.error);
     });
   }
+  async function getSchemeFile(key){
+    const local = await getFile(key);
+    if(local) return local;
+    const filename = window.MR_ESQUEMAS.publishedFiles.get(key);
+    if(!filename) return null;
+    const response = await fetch("assets/esquemas/" + filename);
+    if(!response.ok) throw new Error("No se pudo recuperar " + filename);
+    return new File([await response.blob()], filename, {type:"image/svg+xml"});
+  }
+
   async function deleteFile(key){
     const db=await openDb();
     return new Promise((resolve,reject)=>{
@@ -1071,7 +1082,12 @@
   if($("exportFullBackup")) $("exportFullBackup").onclick=async()=>{
     const status=$("fullBackupStatus"); if(status)status.textContent="Preparando fotografías y dibujos…";
     try{
-      const entries=await getAllMediaEntries();
+      const entries = new Map(await getAllMediaEntries());
+      const schemes = data.schemes.flatMap(scheme => [scheme, ...(scheme.revisions || [])]);
+      const missingKeys = new Set(schemes.map(scheme => scheme.mediaKey).filter(key =>
+        window.MR_ESQUEMAS.publishedFiles.has(key) && !entries.has(key)));
+      const publishedEntries = await Promise.all([...missingKeys].map(async key => [key, await getSchemeFile(key)]));
+      for(const [key, file] of publishedEntries) entries.set(key, file);
       const media=[];
       for(const [key,file] of entries){
         media.push({key,name:file.name||"archivo",type:file.type||"",data:await blobToDataUrl(file)});
@@ -1467,7 +1483,7 @@
         throw error;
       }
     },
-    getFile,
+    getFile: getSchemeFile,
     putFile,
     deleteFile,
     openField(field){
