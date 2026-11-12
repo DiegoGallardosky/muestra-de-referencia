@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Esquemas · Muestra de referencia</title>
   <link rel="stylesheet" href="../styles.css?v=20261006-1120">
-  <link rel="stylesheet" href="catalogo.css">
-  <script defer src="catalogo.js"></script>
-  <script defer src="conexion.js"></script>
+  <link rel="stylesheet" href="catalogo.css?v=2">
+  <script defer src="catalogo.js?v=2"></script>
+  <script defer src="conexion.js?v=2"></script>
 </head>
 <body>
   <header class="topbar">
@@ -20,7 +20,7 @@
   <main>
     <section id="esquemas" class="view active">
       <div class="section-head">
-        <div><h2>Esquemas</h2><p>Compará los diseños y consultá los campos ya clasificados en la muestra.</p></div>
+        <div><h2>Esquemas</h2><p>Abrí una lámina para ver el SVG y la información de Inkscape.</p></div>
         <div class="scheme-actions">
           <label class="scheme-upload">Cargar SVG <input id="schemeBulk" type="file" accept=".svg,image/svg+xml" multiple></label>
           <button id="newScheme" type="button" class="primary">Nuevo esquema</button>
@@ -32,14 +32,13 @@
       <div class="scheme-layout">
         <div>
           <div class="scheme-toolbar">
-            <input id="schemeSearch" type="search" aria-label="Buscar esquemas" placeholder="Buscar por código, nombre o familia…">
-            <button id="compareSchemes" type="button" class="secondary" disabled>Comparar dos SVG</button>
+            <input id="schemeSearch" type="search" aria-label="Buscar esquemas" placeholder="Buscar por código, nombre o texto de la lámina…">
           </div>
           <div id="schemeGallery" class="scheme-gallery"></div>
         </div>
-        <div class="editor-card">
+        <div id="schemeEditor" class="editor-card" hidden>
           <form id="schemeForm">
-            <div class="form-title"><h3 id="schemeEditorTitle">Nuevo esquema</h3><button id="schemeSave" type="submit" class="primary">Guardar</button></div>
+            <div class="form-title"><h3 id="schemeEditorTitle">Nuevo esquema</h3><div class="scheme-actions"><button id="closeSchemeEditor" type="button" class="secondary">Cerrar ficha</button><button id="schemeSave" type="submit" class="primary">Guardar</button></div></div>
             <div class="form-grid">
               <label>Código<input id="schemeCode" placeholder="E7" required></label>
               <label>Nombre<input id="schemeTitle"></label>
@@ -64,6 +63,7 @@
     <section class="catalog-backup" aria-labelledby="backupTitle">
       <h2 id="backupTitle">Respaldo del catálogo</h2>
       <div class="scheme-actions">
+        <button id="exportCatalogCsv" class="secondary" type="button">Descargar datos CSV</button>
         <button id="backupCatalog" class="secondary" type="button">Exportar catálogo y SVG</button>
         <label class="scheme-upload">Restaurar catálogo
           <input id="restoreCatalog" type="file" accept=".json,application/json">
@@ -72,10 +72,22 @@
       <p id="backupStatus" class="scheme-help" role="status"></p>
     </section>
   </main>
-  <dialog id="schemeCompareDialog" aria-labelledby="schemeCompareTitle">
-    <form method="dialog"><button class="dialog-close" aria-label="Cerrar comparación">×</button></form>
-    <h2 id="schemeCompareTitle">Comparar esquemas</h2>
-    <div id="schemeCompareContent" class="scheme-comparison"></div>
+  <dialog id="schemeViewDialog" aria-labelledby="schemeViewTitle">
+    <form method="dialog"><button class="dialog-close" aria-label="Cerrar lámina">×</button></form>
+    <h2 id="schemeViewTitle"></h2>
+    <div id="schemeViewImage"></div>
+    <p id="schemeViewFile" class="scheme-help"></p>
+    <p id="schemeViewCriteria" class="scheme-criteria"></p>
+    <section id="schemeViewSource">
+      <h3>Información de Inkscape</h3>
+      <ul id="schemeViewLabels"></ul>
+      <p id="schemeViewPhotos"></p>
+    </section>
+    <section id="schemeViewFieldSection">
+      <h3>Campos vinculados en la muestra</h3>
+      <ul id="schemeViewOccurrences" class="scheme-occurrences"></ul>
+    </section>
+    <button id="editViewedScheme" type="button" class="secondary">Editar ficha</button>
   </dialog>
   <dialog id="fieldLinkDialog" aria-labelledby="fieldLinkTitle">
     <form method="dialog"><button class="dialog-close" aria-label="Cerrar campo">×</button></form>

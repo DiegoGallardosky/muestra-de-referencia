@@ -1,0 +1,449 @@
+{
+  "version": 1,
+  "esquemas": [
+    {
+      "code": "E1",
+      "title": "Cruz del sur",
+      "filename": "e1.svg",
+      "inkscape": {
+        "labels": [
+          "Cruz del sur",
+          "esquema 1"
+        ],
+        "images": 0
+      }
+    },
+    {
+      "code": "E2",
+      "title": "Enrejado",
+      "filename": "e2.svg",
+      "inkscape": {
+        "labels": [
+          "Enrejado",
+          "esquema 2"
+        ],
+        "images": 0
+      }
+    },
+    {
+      "code": "E3",
+      "title": "Panel pintado",
+      "filename": "e3.svg",
+      "inkscape": {
+        "labels": [
+          "Panel pintado",
+          "esquema 3"
+        ],
+        "images": 0
+      }
+    },
+    {
+      "code": "E4",
+      "title": "Líneas verticales",
+      "filename": "e4.svg",
+      "inkscape": {
+        "labels": [
+          "Lineas verticales",
+          "esquema 4"
+        ],
+        "images": 0
+      }
+    },
+    {
+      "code": "E5",
+      "title": "Triángulos",
+      "filename": "e5.svg",
+      "inkscape": {
+        "labels": [
+          "Triangulos",
+          "esquema 5"
+        ],
+        "images": 0
+      }
+    },
+    {
+      "code": "E6",
+      "title": "Triángulos complejos",
+      "filename": "e6.svg",
+      "inkscape": {
+        "labels": [
+          "Triangulos complejos",
+          "esquema 6"
+        ],
+        "images": 0
+      }
+    },
+    {
+      "code": "E7",
+      "title": "Líneas paralelas con triángulos",
+      "filename": "e7.svg",
+      "inkscape": {
+        "labels": [
+          "Lineas paralelas con triangulos",
+          "esquema 7"
+        ],
+        "images": 0
+      }
+    },
+    {
+      "code": "E8",
+      "title": "Chevrones",
+      "filename": "e8.svg",
+      "inkscape": {
+        "labels": [
+          "Chevrones",
+          "esquema 8"
+        ],
+        "images": 0
+      }
+    },
+    {
+      "code": "E9",
+      "title": "Cassette",
+      "filename": "e9.svg",
+      "inkscape": {
+        "labels": [
+          "Cassette",
+          "esquema 9"
+        ],
+        "images": 0
+      }
+    },
+    {
+      "code": "E10",
+      "title": "Rombos",
+      "filename": "e10.svg",
+      "inkscape": {
+        "labels": [
+          "Rombos",
+          "esquema 10"
+        ],
+        "images": 0
+      }
+    },
+    {
+      "code": "E11",
+      "title": "Familia X",
+      "filename": "e11.svg",
+      "inkscape": {
+        "labels": [
+          "Familia Esquema X",
+          "esquema 11"
+        ],
+        "images": 0
+      }
+    },
+    {
+      "code": "E12",
+      "title": "Cruz del sur vacía",
+      "filename": "e12.svg",
+      "inkscape": {
+        "labels": [
+          "esquema 12",
+          "Esquema cruz del sur vacia"
+        ],
+        "images": 0
+      }
+    },
+    {
+      "code": "E13",
+      "title": "Cuerpo de reptil",
+      "filename": "e13.svg",
+      "inkscape": {
+        "labels": [
+          "esquema 13",
+          "Esquema cuerpo de reptil"
+        ],
+        "images": 0
+      }
+    },
+    {
+      "code": "E14",
+      "title": "Chevrones verticales",
+      "filename": "e14.svg",
+      "inkscape": {
+        "labels": [
+          "Chevrones verticales",
+          "esquema 14"
+        ],
+        "images": 0
+      }
+    },
+    {
+      "code": "E15",
+      "title": "Greca escalonada",
+      "filename": "e15.svg",
+      "inkscape": {
+        "labels": [
+          "esquema greca escalonada",
+          "esquema 15"
+        ],
+        "images": 0
+      }
+    },
+    {
+      "code": "E16",
+      "title": "Pájaro",
+      "filename": "e16.svg",
+      "inkscape": {
+        "labels": [
+          "Esquema pajaro",
+          "esquema 16"
+        ],
+        "images": 0
+      }
+    },
+    {
+      "code": "E17",
+      "title": "Bandas",
+      "filename": "e17.svg",
+      "inkscape": {
+        "labels": [
+          "esquema de bandas",
+          "esquema 17"
+        ],
+        "images": 0
+      }
+    },
+    {
+      "code": "E18",
+      "title": "Piel de quirquincho",
+      "filename": "e18.svg",
+      "inkscape": {
+        "labels": [
+          "esquema piel de quirquincho",
+          "esquema 18"
+        ],
+        "images": 0
+      }
+    },
+    {
+      "code": "E19",
+      "title": "Conjunto de rombos complejos",
+      "filename": "e19.svg",
+      "inkscape": {
+        "labels": [
+          "esquema conjunto rombos complejos",
+          "esquema 19"
+        ],
+        "images": 0
+      }
+    },
+    {
+      "code": "E20",
+      "title": "Espigas de trigo",
+      "filename": "e20.svg",
+      "inkscape": {
+        "labels": [
+          "Esquema de espigas de trigo",
+          "esquema 20"
+        ],
+        "images": 0
+      }
+    },
+    {
+      "code": "E21",
+      "title": "Triángulos encerrados",
+      "filename": "e21.svg",
+      "inkscape": {
+        "labels": [
+          "esquema triangulos encerrados",
+          "esquema 21"
+        ],
+        "images": 0
+      }
+    },
+    {
+      "code": "E22",
+      "title": "Opuesto",
+      "filename": "e22.svg",
+      "inkscape": {
+        "labels": [
+          "esquema opuesto",
+          "esquema 22"
+        ],
+        "images": 0
+      }
+    },
+    {
+      "code": "E23",
+      "title": "Flecha abajo",
+      "filename": "e23.svg",
+      "inkscape": {
+        "labels": [
+          "esquema flecha abajo",
+          "esquema 23"
+        ],
+        "images": 0
+      }
+    },
+    {
+      "code": "E24",
+      "title": "",
+      "filename": "e24.svg",
+      "inkscape": {
+        "labels": [
+          "esquema 24"
+        ],
+        "images": 0
+      }
+    },
+    {
+      "code": "E25",
+      "title": "",
+      "filename": "e25.svg",
+      "inkscape": {
+        "labels": [
+          "esquema 25"
+        ],
+        "images": 0
+      }
+    },
+    {
+      "code": "E26",
+      "title": "",
+      "filename": "e26.svg",
+      "inkscape": {
+        "labels": [
+          "esquema 26"
+        ],
+        "images": 0
+      }
+    },
+    {
+      "code": "E27",
+      "title": "Acanalado",
+      "filename": "e27.svg",
+      "inkscape": {
+        "labels": [
+          "Esquema 27",
+          "acanalado"
+        ],
+        "images": 1
+      }
+    },
+    {
+      "code": "E28",
+      "title": "Impresión dactilar",
+      "filename": "e28.svg",
+      "inkscape": {
+        "labels": [
+          "impresion dactilar",
+          "Esquema 28"
+        ],
+        "images": 1
+      }
+    },
+    {
+      "code": "E29",
+      "title": "Impresión textil",
+      "filename": "e29.svg",
+      "inkscape": {
+        "labels": [
+          "impresion textil",
+          "Esquema 29"
+        ],
+        "images": 1
+      }
+    },
+    {
+      "code": "E30",
+      "title": "Peinado",
+      "filename": "e30.svg",
+      "inkscape": {
+        "labels": [
+          "peinado",
+          "Esquema 30"
+        ],
+        "images": 1
+      }
+    },
+    {
+      "code": "E31",
+      "title": "Corrugado",
+      "filename": "e31.svg",
+      "inkscape": {
+        "labels": [
+          "corrugado",
+          "Esquema 31"
+        ],
+        "images": 1
+      }
+    },
+    {
+      "code": "E32",
+      "title": "Familia de agregado al pastillaje",
+      "filename": "e32.svg",
+      "inkscape": {
+        "labels": [
+          "FAMILIA de esquemas del agregado al pastillaje",
+          "agregado al pastillaje, bolitas",
+          "agregado al pastillaje, esquema en forma de herradura",
+          "Esquema 32",
+          "agregado al pastillaje, esquema cola de pato"
+        ],
+        "images": 3
+      }
+    },
+    {
+      "code": "E33",
+      "title": "Asas",
+      "filename": "e33.svg",
+      "inkscape": {
+        "labels": [
+          "Esquema 33",
+          "Esquema asas"
+        ],
+        "images": 2
+      }
+    },
+    {
+      "code": "E34",
+      "title": "Bordes",
+      "filename": "e34.svg",
+      "inkscape": {
+        "labels": [
+          "Esquema bordes",
+          "Esquema 34"
+        ],
+        "images": 2
+      }
+    },
+    {
+      "code": "E35",
+      "title": "Esquemas animales",
+      "filename": "e35.svg",
+      "inkscape": {
+        "labels": [
+          "esquemas animales",
+          "Esquema 35"
+        ],
+        "images": 17
+      }
+    },
+    {
+      "code": "E36",
+      "title": "Esquemas humanos",
+      "filename": "e36.svg",
+      "inkscape": {
+        "labels": [
+          "esquemas humanos (rostros, pie, manos, extremidades)",
+          "Esquema 36"
+        ],
+        "images": 3
+      }
+    },
+    {
+      "code": "E37",
+      "title": "Esquemas zooantropomorfos",
+      "filename": "e37.svg",
+      "inkscape": {
+        "labels": [
+          "esquemas zooantropomofos",
+          "Esquema 37"
+        ],
+        "images": 1
+      }
+    }
+  ]
+}

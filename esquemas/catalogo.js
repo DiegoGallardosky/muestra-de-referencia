@@ -2,62 +2,28 @@ window.MR_ESQUEMAS = (() => {
   const codePattern = /^E\d+[a-z]?$/i;
   const $ = id => document.getElementById(id);
 
-  const published = [
-    {code:"E1", title:"Cruz del sur", filename:"e1.svg"},
-    {code:"E2", title:"Enrejado", filename:"e2.svg"},
-    {code:"E3", title:"Panel pintado", filename:"e3.svg"},
-    {code:"E4", title:"Líneas verticales", filename:"e4.svg"},
-    {code:"E5", title:"Triángulos", filename:"e5.svg"},
-    {code:"E6", title:"Triángulos complejos", filename:"e6.svg"},
-    {code:"E7", title:"Líneas paralelas con triángulos", filename:"e7.svg"},
-    {code:"E8", title:"Chevrones", filename:"e8.svg"},
-    {code:"E9", title:"Cassette", filename:"e9.svg"},
-    {code:"E10", title:"Rombos", filename:"e10.svg"},
-    {code:"E11", title:"Familia X", filename:"e11.svg"},
-    {code:"E12", title:"Cruz del sur vacía", filename:"e12.svg"},
-    {code:"E13", title:"Cuerpo de reptil", filename:"e13.svg"},
-    {code:"E14", title:"Chevrones verticales", filename:"e14.svg"},
-    {code:"E15", title:"Greca escalonada", filename:"e15.svg"},
-    {code:"E16", title:"Pájaro", filename:"e16.svg"},
-    {code:"E17", title:"Bandas", filename:"e17.svg"},
-    {code:"E18", title:"Piel de quirquincho", filename:"e18.svg"},
-    {code:"E19", title:"Conjunto de rombos complejos", filename:"e19.svg"},
-    {code:"E20", title:"Espigas de trigo", filename:"e20.svg"},
-    {code:"E21", title:"Triángulos encerrados", filename:"e21.svg"},
-    {code:"E22", title:"Opuesto", filename:"e22.svg"},
-    {code:"E23", title:"Flecha abajo", filename:"e23.svg"},
-    {code:"E24", title:"", filename:"e24.svg"},
-    {code:"E25", title:"", filename:"e25.svg"},
-    {code:"E26", title:"", filename:"e26.svg"},
-    {code:"E27", title:"Acanalado", filename:"e27.svg"},
-    {code:"E28", title:"Impresión dactilar", filename:"e28.svg"},
-    {code:"E29", title:"Impresión textil", filename:"e29.svg"},
-    {code:"E30", title:"Peinado", filename:"e30.svg"},
-    {code:"E31", title:"Corrugado", filename:"e31.svg"},
-    {code:"E32", title:"Familia de agregado al pastillaje", filename:"e32.svg"},
-    {code:"E33", title:"Asas", filename:"e33.svg"},
-    {code:"E34", title:"Bordes", filename:"e34.svg"},
-    {code:"E35", title:"Esquemas animales", filename:"e35.svg"},
-    {code:"E36", title:"Esquemas humanos", filename:"e36.svg"},
-    {code:"E37", title:"Esquemas zooantropomorfos", filename:"e37.svg"}
-  ];
   const publishedKey = code => "scheme:published:" + code;
-  const publishedFiles = new Map(published.map(entry => [publishedKey(entry.code), entry.filename]));
 
-  function withPublished(existing) {
+  function withPublished(existing, published) {
     const schemes = Array.isArray(existing) ? [...existing] : [];
     for (const entry of published) {
       const index = schemes.findIndex(scheme => scheme.code === entry.code || scheme.aliases?.includes(entry.code));
       const mediaKey = publishedKey(entry.code);
       if (index === -1) {
         schemes.push({uid:"published:" + entry.code, code:entry.code, title:entry.title,
-          family:"", criteria:"", aliases:[], mediaKey, revisions:[]});
-      } else if (schemes[index].code === entry.code && !schemes[index].mediaKey) {
-        schemes[index] = {...schemes[index], mediaKey};
+          family:"", criteria:"", aliases:[], mediaKey, revisions:[],
+          filename:entry.filename, inkscape:entry.inkscape});
+      } else {
+        const stored = schemes[index];
+        if ((!stored.mediaKey && stored.code === entry.code) || stored.mediaKey === mediaKey) {
+          schemes[index] = {...stored, mediaKey, filename:entry.filename, inkscape:entry.inkscape};
+        }
       }
     }
     return schemes;
   }
+
+  const searchable = value => value.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
 
   function normalizeCode(value) {
     const code = String(value || "").trim();
@@ -76,7 +42,6 @@ window.MR_ESQUEMAS = (() => {
 
   function mount({ getData, save, getFile, putFile, deleteFile, openField }) {
     let selected = "";
-    let comparison = new Set();
     let rendering = 0;
     let busy = false;
     const gallery = $("schemeGallery");
@@ -144,12 +109,10 @@ window.MR_ESQUEMAS = (() => {
 
     function render() {
       if (!$("esquemas").classList.contains("active")) return;
-      const query = $("schemeSearch").value.trim().toLowerCase();
+      const query = searchable($("schemeSearch").value.trim());
       const available = sorted();
-      comparison = new Set([...comparison].filter(uid => available.some(scheme => scheme.uid === uid)));
       gallery.replaceChildren();
-      $("compareSchemes").disabled = comparison.size !== 2;
-      const matches = available.filter(scheme => [...codes(scheme), scheme.title, scheme.family].join(" ").toLowerCase().includes(query));
+      const matches = available.filter(scheme => searchable([...codes(scheme), scheme.title, scheme.family, ...(scheme.inkscape?.labels || [])].join(" ")).includes(query));
       if (!matches.length) gallery.append(text("p", available.length ? "Sin coincidencias." : "Cargá tus SVG para iniciar el catálogo."));
       matches.forEach(scheme => {
         const card = document.createElement("article");
@@ -158,30 +121,56 @@ window.MR_ESQUEMAS = (() => {
         const label = [scheme.code, scheme.title].filter(Boolean).join(" · ");
         const fields = occurrences(scheme);
         const pieces = new Set(fields.map(field => field.piece_uid || field.piece_id).filter(Boolean));
-        const pick = document.createElement("label");
-        const check = document.createElement("input");
-        check.type = "checkbox";
-        check.checked = comparison.has(scheme.uid);
-        check.disabled = comparison.size >= 2 && !check.checked;
-        check.onchange = () => {
-          if (check.checked) comparison.add(scheme.uid);
-          else comparison.delete(scheme.uid);
-          render();
-        };
-        pick.append(check, " Seleccionar para comparar");
-        card.append(imageBox(scheme), button(label, () => edit(scheme.uid)), text("small", pieces.size + " piezas · " + fields.length + " campos"), pick);
+        const preview = button("Ver " + label, () => view(scheme), "scheme-thumb");
+        preview.setAttribute("aria-label", "Ver " + label);
+        preview.replaceChildren(imageBox(scheme));
+        card.append(preview, button(label, () => view(scheme)), text("small", pieces.size + " piezas · " + fields.length + " campos"));
         gallery.append(card);
       });
+    }
+
+    function updateUrl(scheme) {
+      const url = new URL(location.href);
+      if (scheme) url.searchParams.set("esquema", scheme.code);
+      else url.searchParams.delete("esquema");
+      history.replaceState(null, "", url);
+    }
+
+    function view(scheme) {
+      selected = scheme.uid;
+      updateUrl(scheme);
+      $("schemeViewTitle").textContent = [scheme.code, scheme.title].filter(Boolean).join(" · ");
+      $("schemeViewImage").replaceChildren(imageBox(scheme));
+      $("schemeViewFile").textContent = scheme.filename ? "Archivo · " + scheme.filename : "";
+      $("schemeViewCriteria").textContent = scheme.criteria || "";
+      const labels = $("schemeViewLabels");
+      labels.replaceChildren();
+      for (const label of scheme.inkscape?.labels || []) labels.append(text("li", label));
+      $("schemeViewSource").hidden = !labels.children.length && !scheme.inkscape?.images;
+      const images = scheme.inkscape?.images;
+      $("schemeViewPhotos").textContent = images ? "Imágenes incrustadas en el SVG · " + images : "";
+      const fields = occurrences(scheme);
+      $("schemeViewOccurrences").replaceChildren();
+      for (const field of fields) {
+        const item = text("li", "");
+        item.append(button([field.piece_id, field.id, field.nombre].filter(Boolean).join(" · "), () => openField(field)));
+        $("schemeViewOccurrences").append(item);
+      }
+      $("schemeViewFieldSection").hidden = !fields.length;
+      $("editViewedScheme").onclick = () => {
+        $("schemeViewDialog").close();
+        edit(scheme.uid);
+        $("schemeCode").focus();
+      };
+      if (!$("schemeViewDialog").open) $("schemeViewDialog").showModal();
     }
 
     function edit(uid = "") {
       selected = uid;
       const scheme = active();
       rendering += 1;
-      const url = new URL(location.href);
-      if (scheme) url.searchParams.set("esquema", scheme.code);
-      else url.searchParams.delete("esquema");
-      history.replaceState(null, "", url);
+      updateUrl(scheme);
+      $("schemeEditor").hidden = false;
       form.reset();
       $("schemeEditorTitle").textContent = scheme?.code || "Nuevo esquema";
       for (const [key, id] of [["code","schemeCode"],["title","schemeTitle"],["family","schemeFamily"],["criteria","schemeCriteria"]]) {
@@ -226,7 +215,11 @@ window.MR_ESQUEMAS = (() => {
       }
       const key = "scheme:" + crypto.randomUUID();
       await putFile(key, new File([file], file.name, {type:"image/svg+xml"}));
-      return key;
+      const labels = [...root.getElementsByTagNameNS(root.namespaceURI, "text")]
+        .map(node => node.textContent.replace(/\s+/g, " ").trim()).filter(Boolean);
+      return {mediaKey:key, filename:file.name, inkscape:{
+        labels:[...new Set(labels)], images:root.getElementsByTagNameNS(root.namespaceURI, "image").length
+      }};
     }
 
     async function run(action) {
@@ -259,13 +252,13 @@ window.MR_ESQUEMAS = (() => {
         if (!code) throw new Error("Usá un código como E7 o E27a.");
         const existing = getByCode(code);
         if (existing && existing.uid !== previous?.uid) throw new Error(code + " ya pertenece a otro esquema.");
-        const mediaKey = file ? await storeSvg(file) : previous?.mediaKey || "";
+        const media = file ? await storeSvg(file) : {mediaKey:previous?.mediaKey || "", filename:previous?.filename, inkscape:previous?.inkscape};
         const aliases = [...new Set(previous ? codes(previous).filter(value => value !== code) : [])];
         const scheme = {
-          uid: previous?.uid || crypto.randomUUID(), code, title, family, criteria, aliases, mediaKey,
+          uid: previous?.uid || crypto.randomUUID(), code, title, family, criteria, aliases, ...media,
           revisions: previous ? [snapshot(previous), ...(previous.revisions || [])] : []
         };
-        await commit([...records().filter(item => item.uid !== scheme.uid), scheme], file ? [mediaKey] : []);
+        await commit([...records().filter(item => item.uid !== scheme.uid), scheme], file ? [media.mediaKey] : []);
         if (generation === rendering) edit(scheme.uid);
         else render();
         return code + " guardado.";
@@ -286,10 +279,10 @@ window.MR_ESQUEMAS = (() => {
             continue;
           }
           try {
-            const mediaKey = await storeSvg(file);
+            const media = await storeSvg(file);
             const scheme = previous
-              ? {...previous, mediaKey, revisions:[snapshot(previous), ...(previous.revisions || [])]}
-              : {uid:crypto.randomUUID(), code, title:"", family:"", criteria:"", aliases:[], mediaKey, revisions:[]};
+              ? {...previous, ...media, revisions:[snapshot(previous), ...(previous.revisions || [])]}
+              : {uid:crypto.randomUUID(), code, title:"", family:"", criteria:"", aliases:[], ...media, revisions:[]};
             additions.push(scheme);
           } catch {
             pending.push(file.name);
@@ -325,25 +318,19 @@ window.MR_ESQUEMAS = (() => {
 
     $("newScheme").onclick = () => { edit(); $("schemeCode").focus(); };
     $("schemeSearch").oninput = render;
-    $("compareSchemes").onclick = () => {
-      const compare = $("schemeCompareContent");
-      compare.replaceChildren();
-      for (const scheme of sorted().filter(item => comparison.has(item.uid))) {
-        const panel = document.createElement("article");
-        panel.append(text("h3", [scheme.code, scheme.title].filter(Boolean).join(" · ")), imageBox(scheme), text("p", scheme.criteria));
-        compare.append(panel);
-      }
-      $("schemeCompareDialog").showModal();
+    $("closeSchemeEditor").onclick = () => {
+      $("schemeEditor").hidden = true;
+      $("newScheme").focus();
     };
 
-    function show(code) {
+    function show(code, open = false) {
       const scheme = getByCode(normalizeCode(code));
-      if (scheme) edit(scheme.uid);
-      else render();
+      render();
+      if (scheme && open) view(scheme);
     }
 
     return {render, show};
   }
 
-  return {mount, withPublished, publishedFiles};
+  return {mount, withPublished, publishedKey};
 })();

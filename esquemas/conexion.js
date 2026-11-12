@@ -1,10 +1,15 @@
-(() => {
+(async () => {
   const $ = id => document.getElementById(id);
   const BASE_KEY = "mr_reference_data_v1";
   const CATALOG_KEY = "mr_catalog_schemes_v1";
   const DB_NAME = "muestra_referencia_catalogo_media";
   const FORMAT = "muestra-referencia-catalogo";
-  const {mount, withPublished, publishedFiles} = window.MR_ESQUEMAS;
+  const {mount, withPublished, publishedKey} = window.MR_ESQUEMAS;
+  const response = await fetch("datos.json?v=1");
+  if (!response.ok) throw new Error("No se pudo recuperar la base de esquemas.");
+  const {esquemas:published} = await response.json();
+  const publishedFiles = new Map(published.map(entry => [publishedKey(entry.code), entry.filename]));
+  const catalogWithPublished = existing => withPublished(existing, published);
 
   function load(key) {
     try { return JSON.parse(localStorage.getItem(key)); }
@@ -16,7 +21,7 @@
     return Array.isArray(data?.fields) ? data : null;
   }
 
-  let schemes = withPublished(load(CATALOG_KEY));
+  let schemes = catalogWithPublished(load(CATALOG_KEY));
   let base = readBase();
   let database;
 
@@ -70,22 +75,22 @@
     deleteFile: key => fileOperation("readwrite", store => store.delete(key))
   });
 
-  function refreshBase() {
+  function refreshBase(open = false) {
     base = readBase();
     $("baseStatus").textContent = base
       ? "Vínculos consultados en la muestra guardada en este navegador."
       : "Abrí la base en este navegador para consultar sus campos vinculados.";
-    controller.show(new URL(location.href).searchParams.get("esquema"));
+    controller.show(new URL(location.href).searchParams.get("esquema"), open);
   }
 
   window.addEventListener("storage", event => {
     if (event.key === BASE_KEY) refreshBase();
     if (event.key === CATALOG_KEY) {
-      schemes = withPublished(load(CATALOG_KEY));
+      schemes = catalogWithPublished(load(CATALOG_KEY));
       controller.show(new URL(location.href).searchParams.get("esquema"));
     }
   });
-  refreshBase();
+  refreshBase(true);
 
   function encode(file) {
     return new Promise((resolve, reject) => {
@@ -121,6 +126,31 @@
     }
   }
 
+  function download(blob, name) {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = name;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  function csvCell(value) {
+    const content = String(value ?? "");
+    const text = /^[\s]*[=+@-]/.test(content) ? "'" + content : content;
+    return '"' + text.replace(/"/g, '""') + '"';
+  }
+
+  $("exportCatalogCsv").onclick = () => {
+    const rows = [["Código", "Nombre", "Familia", "Definición, rasgos y variantes", "Archivo SVG", "Rótulos de Inkscape", "Imágenes incrustadas"]];
+    for (const scheme of [...schemes].sort((a,b) => a.code.localeCompare(b.code, "es", {numeric:true}))) {
+      rows.push([scheme.code, scheme.title, scheme.family, scheme.criteria, scheme.filename,
+        scheme.inkscape?.labels?.join(" | "), scheme.inkscape?.images]);
+    }
+    const csv = rows.map(row => row.map(csvCell).join(",")).join("\r\n");
+    download(new Blob(["\ufeff", csv], {type:"text/csv;charset=utf-8"}), "esquemas_inkscape.csv");
+  };
+
   $("backupCatalog").onclick = () => withBackupStatus(async () => {
     const snapshot = schemes;
     const keys = new Set(snapshot.flatMap(scheme => [scheme, ...(scheme.revisions || [])]).map(entry => entry.mediaKey).filter(Boolean));
@@ -130,12 +160,7 @@
       return {key, name:file.name, data:await encode(file)};
     }));
     const blob = new Blob([JSON.stringify({format:FORMAT, schemes:snapshot, files})], {type:"application/json"});
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "respaldo_catalogo_esquemas.json";
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    download(blob, "respaldo_catalogo_esquemas.json");
     return files.length + " SVG incluidos en el respaldo.";
   });
 
@@ -153,9 +178,11 @@
       await fileOperation("readwrite", store => {
         for (const [key, svg] of files) store.put(svg, key);
       });
-      save(withPublished(payload.schemes));
+      save(catalogWithPublished(payload.schemes));
       controller.show(new URL(location.href).searchParams.get("esquema"));
       return "Catálogo restaurado.";
     });
   };
-})();
+})().catch(error => {
+  document.getElementById("schemeStatus").textContent = error.message || "No se pudo abrir el catálogo.";
+});
