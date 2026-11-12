@@ -6,6 +6,32 @@
   <meta name="theme-color" content="#10251d">
   <title>Muestra de referencia · Tradición San Francisco</title>
   <link rel="stylesheet" href="styles.css?v=20261006-1120">
+  <style>
+    #inicio .scheme-entry {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px 20px;
+      padding: 18px 20px;
+      border: 1px solid var(--line);
+      border-left: 3px solid var(--lime);
+      border-radius: 12px;
+      background: var(--panel);
+    }
+    #inicio .scheme-entry h2 {
+      margin: 0 0 4px;
+      font-size: 1.3rem;
+    }
+    #inicio .scheme-entry p {
+      margin: 0;
+      font-size: .95rem;
+      color: var(--muted);
+    }
+    #inicio .scheme-entry a {
+      text-decoration: none;
+    }
+  </style>
 </head>
 <body>
   <header class="topbar">
@@ -33,6 +59,13 @@
             <button class="primary" data-nav="muestra">Acceder a la muestra</button>
             <button class="secondary" data-nav="editar">Cargar / editar datos</button>
           </div>
+          <article class="scheme-entry" aria-labelledby="homeSchemesTitle">
+            <div>
+              <h2 id="homeSchemesTitle">Esquemas</h2>
+              <p>Consultá y compará las 37 láminas de referencia, de E1 a E37.</p>
+            </div>
+            <a class="primary" href="esquemas/">Abrir catálogo de esquemas</a>
+          </article>
           <div class="stats">
             <div><strong id="statPieces">30</strong><span>Piezas</span></div>
             <div><strong id="statFields">0</strong><span>Campos</span></div>
