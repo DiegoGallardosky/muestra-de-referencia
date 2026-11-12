@@ -28,13 +28,23 @@
 @media(max-width:520px){.topbar{gap:8px}.catalog-base-link{padding:8px 10px;font-size:.85rem}}
 
 .scheme-layout:has(#schemeEditor[hidden]){grid-template-columns:minmax(0,1fr)}
-.scheme-gallery{grid-template-columns:repeat(auto-fill,minmax(min(100%,230px),1fr))}
+.scheme-gallery{grid-template-columns:repeat(auto-fill,minmax(min(100%,265px),1fr))}
 .scheme-thumb{border:0;background:transparent;padding:0;cursor:zoom-in}
 .scheme-thumb:focus-visible{outline:2px solid var(--lime);outline-offset:3px}
-.scheme-gallery .scheme-image img{width:100%;height:145px}
+.scheme-gallery .scheme-image img{width:100%;height:166px}
 #schemeViewDialog{width:min(1200px,94vw)}
 #schemeViewDialog h2{padding-right:28px;margin-top:0}
 #schemeViewImage .scheme-image img{max-width:100%;max-height:66vh}
 .scheme-criteria{white-space:pre-wrap}
 #schemeViewDialog p:empty{display:none}
 #schemeViewSource ul{padding-left:22px;line-height:1.5}
+
+.catalog-management{max-width:410px}
+.catalog-management summary{cursor:pointer;color:var(--lime);padding:10px 0}
+.catalog-management .scheme-actions{margin-top:8px}
+.catalog-management p{margin:8px 0 0}
+#schemeGalleryCount{color:var(--muted);font-size:.86rem;white-space:nowrap}
+.scheme-title{border:0;background:none;color:var(--white);font:inherit;font-weight:750;padding:3px 0;cursor:pointer}
+.scheme-title:hover{text-decoration:underline}
+#schemeEditor[hidden]{display:none}
+.scheme-status{overflow-wrap:anywhere}

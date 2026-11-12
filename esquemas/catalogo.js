@@ -113,6 +113,9 @@ window.MR_ESQUEMAS = (() => {
       const available = sorted();
       gallery.replaceChildren();
       const matches = available.filter(scheme => searchable([...codes(scheme), scheme.title, scheme.family, ...(scheme.inkscape?.labels || [])].join(" ")).includes(query));
+      $("schemeGalleryCount").textContent = matches.length === available.length
+        ? available.length + " esquemas"
+        : matches.length + " de " + available.length + " esquemas";
       if (!matches.length) gallery.append(text("p", available.length ? "Sin coincidencias." : "Cargá tus SVG para iniciar el catálogo."));
       matches.forEach(scheme => {
         const card = document.createElement("article");
@@ -124,7 +127,8 @@ window.MR_ESQUEMAS = (() => {
         const preview = button("Ver " + label, () => view(scheme), "scheme-thumb");
         preview.setAttribute("aria-label", "Ver " + label);
         preview.replaceChildren(imageBox(scheme));
-        card.append(preview, button(label, () => view(scheme)), text("small", pieces.size + " piezas · " + fields.length + " campos"));
+        card.append(preview, button(label, () => view(scheme), "scheme-title"));
+        if (fields.length) card.append(text("small", pieces.size + " piezas · " + fields.length + " campos"));
         gallery.append(card);
       });
     }

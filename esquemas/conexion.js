@@ -1,5 +1,13 @@
 (async () => {
   const $ = id => document.getElementById(id);
+  // Las copias anteriores de la página pueden conservarse en la caché.
+  if (!$("schemeGalleryCount")) {
+    const gallery = new URL("galeria.html", location.href);
+    gallery.search = location.search;
+    gallery.hash = location.hash;
+    location.replace(gallery.href);
+    return;
+  }
   const BASE_KEY = "mr_reference_data_v1";
   const CATALOG_KEY = "mr_catalog_schemes_v1";
   const DB_NAME = "muestra_referencia_catalogo_media";
@@ -184,5 +192,9 @@
     });
   };
 })().catch(error => {
-  document.getElementById("schemeStatus").textContent = error.message || "No se pudo abrir el catálogo.";
+  console.error(error);
+  const status = document.getElementById("schemeStatus");
+  const count = document.getElementById("schemeGalleryCount");
+  if (count) count.textContent = "";
+  if (status) status.textContent = "No se pudo cargar la galería. Volvé a abrir esta página.";
 });

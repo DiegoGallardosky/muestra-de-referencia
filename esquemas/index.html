@@ -4,96 +4,14 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Esquemas · Muestra de referencia</title>
-  <link rel="stylesheet" href="../styles.css?v=20261006-1120">
-  <link rel="stylesheet" href="catalogo.css?v=2">
-  <script defer src="catalogo.js?v=2"></script>
-  <script defer src="conexion.js?v=2"></script>
+  <script>
+    const gallery = new URL("galeria.html", location.href);
+    gallery.search = location.search;
+    gallery.hash = location.hash;
+    location.replace(gallery.href);
+  </script>
 </head>
 <body>
-  <header class="topbar">
-    <a class="brand" href="../#muestra">
-      <span class="brand-mark">SF</span>
-      <span><strong>Muestra de referencia</strong><small>Tradición San Francisco</small></span>
-    </a>
-    <a class="secondary catalog-base-link" href="../#muestra">Abrir la base de datos</a>
-  </header>
-  <main>
-    <section id="esquemas" class="view active">
-      <div class="section-head">
-        <div><h2>Esquemas</h2><p>Abrí una lámina para ver el SVG y la información de Inkscape.</p></div>
-        <div class="scheme-actions">
-          <label class="scheme-upload">Cargar SVG <input id="schemeBulk" type="file" accept=".svg,image/svg+xml" multiple></label>
-          <button id="newScheme" type="button" class="primary">Nuevo esquema</button>
-        </div>
-      </div>
-      <p class="scheme-help">Nombrá los archivos con su código, como E7.svg o E27a.svg, para cargarlos en lote.</p>
-      <p id="baseStatus" class="scheme-help"></p>
-      <p id="schemeStatus" class="scheme-status" role="status"></p>
-      <div class="scheme-layout">
-        <div>
-          <div class="scheme-toolbar">
-            <input id="schemeSearch" type="search" aria-label="Buscar esquemas" placeholder="Buscar por código, nombre o texto de la lámina…">
-          </div>
-          <div id="schemeGallery" class="scheme-gallery"></div>
-        </div>
-        <div id="schemeEditor" class="editor-card" hidden>
-          <form id="schemeForm">
-            <div class="form-title"><h3 id="schemeEditorTitle">Nuevo esquema</h3><div class="scheme-actions"><button id="closeSchemeEditor" type="button" class="secondary">Cerrar ficha</button><button id="schemeSave" type="submit" class="primary">Guardar</button></div></div>
-            <div class="form-grid">
-              <label>Código<input id="schemeCode" placeholder="E7" required></label>
-              <label>Nombre<input id="schemeTitle"></label>
-              <label class="span-2">Familia o esquema principal<input id="schemeFamily" placeholder="Ej.: E11"></label>
-              <label class="span-2">Definición, rasgos diagnósticos y variantes<textarea id="schemeCriteria" rows="4"></textarea></label>
-              <label class="span-2">Archivo SVG<input id="schemeFile" type="file" accept=".svg,image/svg+xml"></label>
-              <div id="schemePreview" class="span-2"></div>
-            </div>
-          </form>
-          <h4>Campos vinculados en la muestra</h4>
-          <ul id="schemeOccurrences" class="scheme-occurrences"></ul>
-          <details id="schemeHistory" hidden>
-            <summary>Versiones anteriores</summary>
-            <div class="scheme-toolbar">
-              <select id="schemeRevisions" aria-label="Versión del esquema"></select>
-              <button id="restoreScheme" type="button" class="secondary">Restaurar versión</button>
-            </div>
-          </details>
-        </div>
-      </div>
-    </section>
-    <section class="catalog-backup" aria-labelledby="backupTitle">
-      <h2 id="backupTitle">Respaldo del catálogo</h2>
-      <div class="scheme-actions">
-        <button id="exportCatalogCsv" class="secondary" type="button">Descargar datos CSV</button>
-        <button id="backupCatalog" class="secondary" type="button">Exportar catálogo y SVG</button>
-        <label class="scheme-upload">Restaurar catálogo
-          <input id="restoreCatalog" type="file" accept=".json,application/json">
-        </label>
-      </div>
-      <p id="backupStatus" class="scheme-help" role="status"></p>
-    </section>
-  </main>
-  <dialog id="schemeViewDialog" aria-labelledby="schemeViewTitle">
-    <form method="dialog"><button class="dialog-close" aria-label="Cerrar lámina">×</button></form>
-    <h2 id="schemeViewTitle"></h2>
-    <div id="schemeViewImage"></div>
-    <p id="schemeViewFile" class="scheme-help"></p>
-    <p id="schemeViewCriteria" class="scheme-criteria"></p>
-    <section id="schemeViewSource">
-      <h3>Información de Inkscape</h3>
-      <ul id="schemeViewLabels"></ul>
-      <p id="schemeViewPhotos"></p>
-    </section>
-    <section id="schemeViewFieldSection">
-      <h3>Campos vinculados en la muestra</h3>
-      <ul id="schemeViewOccurrences" class="scheme-occurrences"></ul>
-    </section>
-    <button id="editViewedScheme" type="button" class="secondary">Editar ficha</button>
-  </dialog>
-  <dialog id="fieldLinkDialog" aria-labelledby="fieldLinkTitle">
-    <form method="dialog"><button class="dialog-close" aria-label="Cerrar campo">×</button></form>
-    <h2 id="fieldLinkTitle">Campo en la muestra</h2>
-    <p id="fieldLinkDetail"></p>
-    <a class="secondary catalog-base-link" href="../#muestra">Abrir la base de datos</a>
-  </dialog>
+  <p><a href="galeria.html">Abrir la galería de esquemas</a></p>
 </body>
 </html>
