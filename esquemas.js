@@ -7,7 +7,12 @@ window.MR_ESQUEMAS = (() => {
     {code:"E2", title:"Enrejado", filename:"e2.svg"},
     {code:"E3", title:"Panel pintado", filename:"e3.svg"},
     {code:"E4", title:"Líneas verticales", filename:"e4.svg"},
-    {code:"E5", title:"Triángulos", filename:"e5.svg"}
+    {code:"E5", title:"Triángulos", filename:"e5.svg"},
+    {code:"E6", title:"Triángulos complejos", filename:"e6.svg"},
+    {code:"E7", title:"Líneas paralelas con triángulos", filename:"e7.svg"},
+    {code:"E8", title:"Chevrones", filename:"e8.svg"},
+    {code:"E9", title:"Cassette", filename:"e9.svg"},
+    {code:"E10", title:"Rombos", filename:"e10.svg"}
   ];
   const publishedKey = code => "scheme:published:" + code;
   const publishedFiles = new Map(published.map(entry => [publishedKey(entry.code), entry.filename]));
