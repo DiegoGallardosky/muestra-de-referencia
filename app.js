@@ -20,8 +20,6 @@
   let selectedPieceId = data.pieces[0]?.id || "";
   let selectedDesignId = data.designs[0]?.id || "";
   let audioEngine = null;
-  let schemesView;
-  let lastSavedState = localStorage.getItem(STORE_KEY);
 
   const $ = (id) => document.getElementById(id);
   const esc = (s="") => String(s).replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]));
@@ -34,7 +32,6 @@
     d.pieces=Array.isArray(d.pieces)?d.pieces:[];
     d.designs=Array.isArray(d.designs)?d.designs:[];
     d.fields=Array.isArray(d.fields)?d.fields:[];
-    d.schemes=window.MR_ESQUEMAS.withPublished(d.schemes);
     // Mantener los registros cargados, pero actualizar catálogos/opciones del esquema.
     // Esto evita que una base guardada en una versión anterior quede sin los campos
     // predeterminados incorporados posteriormente.
@@ -177,9 +174,7 @@
         localStorage.setItem(HISTORY_KEY,JSON.stringify(history.slice(0,10)));
       }
     }catch(e){}
-    const serialized = JSON.stringify(data);
-    localStorage.setItem(STORE_KEY, serialized);
-    lastSavedState = serialized;
+    localStorage.setItem(STORE_KEY, JSON.stringify(data));
     refreshStats();
   }
   function toast(msg){
@@ -209,16 +204,6 @@
       req.onsuccess=()=>resolve(req.result||null); req.onerror=()=>reject(req.error);
     });
   }
-  async function getSchemeFile(key){
-    const local = await getFile(key);
-    if(local) return local;
-    const filename = window.MR_ESQUEMAS.publishedFiles.get(key);
-    if(!filename) return null;
-    const response = await fetch("assets/esquemas/" + filename);
-    if(!response.ok) throw new Error("No se pudo recuperar " + filename);
-    return new File([await response.blob()], filename, {type:"image/svg+xml"});
-  }
-
   async function deleteFile(key){
     const db=await openDb();
     return new Promise((resolve,reject)=>{
@@ -324,7 +309,6 @@
     document.querySelectorAll("[data-nav]").forEach(b=>b.classList.toggle("active",b.dataset.nav===id && b.classList.contains("nav-btn")));
     history.replaceState(null,"","#"+id);
     if(id==="muestra") renderCatalog();
-    if(id==="esquemas") schemesView?.render();
     if(id==="editar") { renderPieceList(); renderDesignList(); loadPieceForm(selectedPieceId); }
   }
   document.querySelectorAll("[data-nav]").forEach(el=>el.addEventListener("click",e=>{e.preventDefault();setView(el.dataset.nav);}));
@@ -1082,12 +1066,7 @@
   if($("exportFullBackup")) $("exportFullBackup").onclick=async()=>{
     const status=$("fullBackupStatus"); if(status)status.textContent="Preparando fotografías y dibujos…";
     try{
-      const entries = new Map(await getAllMediaEntries());
-      const schemes = data.schemes.flatMap(scheme => [scheme, ...(scheme.revisions || [])]);
-      const missingKeys = new Set(schemes.map(scheme => scheme.mediaKey).filter(key =>
-        window.MR_ESQUEMAS.publishedFiles.has(key) && !entries.has(key)));
-      const publishedEntries = await Promise.all([...missingKeys].map(async key => [key, await getSchemeFile(key)]));
-      for(const [key, file] of publishedEntries) entries.set(key, file);
+      const entries=await getAllMediaEntries();
       const media=[];
       for(const [key,file] of entries){
         media.push({key,name:file.name||"archivo",type:file.type||"",data:await blobToDataUrl(file)});
@@ -1110,7 +1089,7 @@
       for(const item of payload.media||[]){
         await putFile(item.key,dataUrlToFile(item.data,item.name,item.type));
       }
-      saveData();schemesView.refreshOptions();refreshPieceSelect();renderPieceList();renderDesignList();renderCatalog();
+      saveData();refreshPieceSelect();renderPieceList();renderDesignList();renderCatalog();
       if(selectedPieceId && data.pieces.some(p=>p.id===selectedPieceId))loadPieceForm(selectedPieceId);
       else if(data.pieces[0])loadPieceForm(data.pieces[0].id);
       if(status)status.textContent="Importación completa: "+(payload.media||[]).length+" archivo(s).";
@@ -1123,7 +1102,7 @@
 
   $("importJson").onchange=async e=>{
     const f=e.target.files[0];if(!f)return;
-    try{const obj=JSON.parse(await f.text());if(!obj.pieces||!obj.designs)throw new Error("Formato inválido");data=migrateData(obj);saveData();schemesView.refreshOptions();refreshPieceSelect();renderPieceList();renderDesignList();renderCatalog();toast("Respaldo importado y actualizado");}catch(err){alert("No se pudo importar el archivo: "+err.message);}e.target.value="";
+    try{const obj=JSON.parse(await f.text());if(!obj.pieces||!obj.designs)throw new Error("Formato inválido");data=migrateData(obj);saveData();refreshPieceSelect();renderPieceList();renderDesignList();renderCatalog();toast("Respaldo importado y actualizado");}catch(err){alert("No se pudo importar el archivo: "+err.message);}e.target.value="";
   };
 
   async function renumberDrawingsOnly(){
@@ -1467,32 +1446,6 @@
     if(!audioEngine){audioEngine=createJungleAudio();if(!audioEngine){toast("Audio no disponible en este navegador");return;}b.setAttribute("aria-pressed","true");b.textContent="◉ Selva activa";toast("Ambiente sonoro activado");}
     else {audioEngine.stop();audioEngine=null;b.setAttribute("aria-pressed","false");b.textContent="◉ Selva";toast("Ambiente sonoro desactivado");}
   };
-
-  schemesView = window.MR_ESQUEMAS.mount({
-    getData: () => data,
-    save(schemes){
-      if(localStorage.getItem(STORE_KEY)!==lastSavedState){
-        throw new Error("La base cambió en otra pestaña. Recargá antes de guardar.");
-      }
-      const previous = data.schemes;
-      data.schemes = schemes;
-      try{
-        saveData();
-      }catch(error){
-        data.schemes = previous;
-        throw error;
-      }
-    },
-    getFile: getSchemeFile,
-    putFile,
-    deleteFile,
-    openField(field){
-      const design = data.designs.find(item => item.field_id === field.id);
-      return design ? openDesignDetail(design.id) : openPieceDetail(field.piece_id);
-    },
-    toast
-  });
-  if(initialHash==="esquemas") setView(initialHash);
 
   // Initial render
   renderPieceList();renderDesignList();loadPieceForm(selectedPieceId);renderCatalog();

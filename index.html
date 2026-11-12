@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#10251d">
   <title>Muestra de referencia · Tradición San Francisco</title>
-  <link rel="stylesheet" href="styles.css?v=20261112-esquemas-2">
+  <link rel="stylesheet" href="styles.css?v=20261006-1120">
 </head>
 <body>
   <header class="topbar">
@@ -16,7 +16,6 @@
     <nav>
       <button class="nav-btn active" data-nav="inicio">Inicio</button>
       <button class="nav-btn" data-nav="muestra">Ver muestra</button>
-      <button class="nav-btn" data-nav="esquemas">Esquemas</button>
       <button class="nav-btn" data-nav="editar">Editar</button>
       <button class="nav-btn" data-nav="exportar">SPSS / Exportar</button>
     </nav>
@@ -69,49 +68,6 @@
         <select id="filterSite"><option value="">Todos los sitios</option></select>
       </div>
       <div id="catalogGrid" class="catalog-grid"></div>
-    </section>
-
-    <section id="esquemas" class="view">
-      <div class="section-head">
-        <div><h2>Esquemas</h2><p>Compará los dibujos de referencia y consultá las piezas y campos donde aparece cada esquema.</p></div>
-        <div class="scheme-actions">
-          <label class="scheme-upload">Cargar SVG <input id="schemeBulk" type="file" accept=".svg,image/svg+xml" multiple></label>
-          <button id="newScheme" type="button" class="primary">Nuevo esquema</button>
-        </div>
-      </div>
-      <p class="scheme-help">Nombrá los archivos con su código, como E7.svg o E27a.svg, para cargarlos en lote.</p>
-      <p id="schemeStatus" class="scheme-status" role="status"></p>
-      <div class="scheme-layout">
-        <div>
-          <div class="scheme-toolbar">
-            <input id="schemeSearch" type="search" aria-label="Buscar esquemas" placeholder="Buscar por código, nombre o familia…">
-            <button id="compareSchemes" type="button" class="secondary" disabled>Comparar dos SVG</button>
-          </div>
-          <div id="schemeGallery" class="scheme-gallery"></div>
-        </div>
-        <div class="editor-card">
-          <form id="schemeForm">
-            <div class="form-title"><h3 id="schemeEditorTitle">Nuevo esquema</h3><button id="schemeSave" type="submit" class="primary">Guardar</button></div>
-            <div class="form-grid">
-              <label>Código<input id="schemeCode" placeholder="E7" required></label>
-              <label>Nombre<input id="schemeTitle"></label>
-              <label class="span-2">Familia o esquema principal<input id="schemeFamily" placeholder="Ej.: E11"></label>
-              <label class="span-2">Definición, rasgos diagnósticos y variantes<textarea id="schemeCriteria" rows="4"></textarea></label>
-              <label class="span-2">Archivo SVG<input id="schemeFile" type="file" accept=".svg,image/svg+xml"></label>
-              <div id="schemePreview" class="span-2"></div>
-            </div>
-          </form>
-          <h4>Campos vinculados</h4>
-          <ul id="schemeOccurrences" class="scheme-occurrences"></ul>
-          <details id="schemeHistory" hidden>
-            <summary>Versiones anteriores</summary>
-            <div class="scheme-toolbar">
-              <select id="schemeRevisions" aria-label="Versión del esquema"></select>
-              <button id="restoreScheme" type="button" class="secondary">Restaurar versión</button>
-            </div>
-          </details>
-        </div>
-      </div>
     </section>
 
     <section id="editar" class="view">
@@ -187,7 +143,6 @@
             <fieldset class="span-2"><legend>Técnica(s)</legend><div id="techniqueChecks" class="check-grid"></div></fieldset>
             <label id="d_tecnica_otro_wrap" class="span-2 hidden">Otra técnica<input id="d_tecnica_otro"></label>
             <label class="span-2">Esquema(s) <small>Puede haber más de uno por campo. Separalos con el signo |.</small><input id="d_esquema"></label>
-            <label class="span-2">Catálogo de esquemas<select id="d_scheme_catalog"></select></label>
             <label class="span-2">Colores <small>Descripción libre.</small><input id="d_colores" placeholder="Ej.: rojo, negro sobre ante…"></label>
             <label class="span-2">Observaciones<textarea id="d_observaciones" rows="4"></textarea></label>
             <div class="span-2 media-field">
@@ -210,25 +165,18 @@
         <article><h3>Matriz SPSS</h3><p>Una fila por campo decorativo, la unidad de análisis, con variables de pieza y técnicas convertidas a 0/1.</p><button id="exportSpss" class="primary">Descargar matriz_spss.csv</button></article>
         <article><h3>Diccionario</h3><p>Descripción de variables y codificación básica para documentar los análisis.</p><button id="exportDictionary" class="secondary">Descargar diccionario.csv</button></article>
         <article><h3>Respaldo de datos</h3><p>Exporta o importa solamente los datos textuales.</p><button id="exportJson" class="secondary">Exportar JSON</button><label class="import-label">Importar JSON<input id="importJson" type="file" accept=".json,application/json"></label></article>
-        <article><h3>Pasar al celular</h3><p>Crea un único respaldo con datos + fotografías + dibujos + SVG del catálogo. Importalo desde la misma web en el celular.</p><button id="exportFullBackup" class="primary">Descargar respaldo completo</button><label class="import-label">Importar respaldo completo<input id="importFullBackup" type="file" accept=".json,application/json"></label><small id="fullBackupStatus"></small></article>
+        <article><h3>Pasar al celular</h3><p>Crea un único respaldo con datos + fotografías + dibujos. Importalo desde la misma web en el celular.</p><button id="exportFullBackup" class="primary">Descargar respaldo completo</button><label class="import-label">Importar respaldo completo<input id="importFullBackup" type="file" accept=".json,application/json"></label><small id="fullBackupStatus"></small></article>
         <article><h3>Auditoría de integridad</h3><p>Revisa IDs, relaciones pieza–campo–dibujo, sectores incompatibles y registros incompletos.</p><div class="audit-actions"><button id="runAudit" class="secondary">Auditar base</button><button id="repairIds" class="secondary">Corregir secuencia de IDs</button></div><div id="auditSummary" class="audit-summary"></div></article>
         <article><h3>Estado de persistencia</h3><p>Los datos siguen guardándose localmente en cada navegador. El respaldo completo permite trasladarlos entre computadora y celular; la sincronización automática entre dispositivos requiere una base central en la nube.</p></article>
       </div>
     </section>
-  </main><div id="appVersion" style="position:fixed;right:8px;bottom:6px;font-size:10px;opacity:.45;z-index:20">v2026.11.12</div>
+  </main><div id="appVersion" style="position:fixed;right:8px;bottom:6px;font-size:10px;opacity:.45;z-index:20">v2026.10.06</div>
 
   <dialog id="detailDialog"><button id="closeDialog" class="dialog-close">×</button><div id="dialogContent"></div></dialog>
   <div id="toast" class="toast" role="status"></div>
 
-  <script src="data.js?v=20261112-esquemas-2"></script>
-  <script src="migrations.js?v=20261112-esquemas-2"></script>
-  <dialog id="schemeCompareDialog" aria-labelledby="schemeCompareTitle">
-    <form method="dialog"><button class="dialog-close" aria-label="Cerrar comparación">×</button></form>
-    <h2 id="schemeCompareTitle">Comparar esquemas</h2>
-    <div id="schemeCompareContent" class="scheme-comparison"></div>
-  </dialog>
-
-  <script src="esquemas.js?v=20261112-esquemas-9"></script>
-  <script src="app.js?v=20261112-esquemas-2"></script>
+  <script src="data.js?v=20261006-1120"></script>
+  <script src="migrations.js?v=20261006-1120"></script>
+  <script src="app.js?v=20261006-1120"></script>
 </body>
 </html>

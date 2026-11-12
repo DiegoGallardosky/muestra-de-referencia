@@ -74,7 +74,7 @@ window.MR_ESQUEMAS = (() => {
     return match ? normalizeCode("E" + match[1]) : "";
   }
 
-  function mount({ getData, save, getFile, putFile, deleteFile, openField, toast }) {
+  function mount({ getData, save, getFile, putFile, deleteFile, openField }) {
     let selected = "";
     let comparison = new Set();
     let rendering = 0;
@@ -82,7 +82,6 @@ window.MR_ESQUEMAS = (() => {
     const gallery = $("schemeGallery");
     const form = $("schemeForm");
     const status = $("schemeStatus");
-    const fieldSelect = $("d_scheme_catalog");
 
     const records = () => getData().schemes || [];
     const sorted = () => [...records()].sort((a, b) => a.code.localeCompare(b.code, "es", {numeric:true}));
@@ -143,12 +142,6 @@ window.MR_ESQUEMAS = (() => {
       return box;
     }
 
-    function refreshOptions() {
-      fieldSelect.replaceChildren(new Option("Añadir desde el catálogo…", ""));
-      sorted().forEach(scheme => fieldSelect.add(new Option([scheme.code, scheme.title].filter(Boolean).join(" · "), scheme.code)));
-      fieldSelect.disabled = !records().length;
-    }
-
     function render() {
       if (!$("esquemas").classList.contains("active")) return;
       const query = $("schemeSearch").value.trim().toLowerCase();
@@ -179,13 +172,16 @@ window.MR_ESQUEMAS = (() => {
         card.append(imageBox(scheme), button(label, () => edit(scheme.uid)), text("small", pieces.size + " piezas · " + fields.length + " campos"), pick);
         gallery.append(card);
       });
-      refreshOptions();
     }
 
     function edit(uid = "") {
       selected = uid;
       const scheme = active();
       rendering += 1;
+      const url = new URL(location.href);
+      if (scheme) url.searchParams.set("esquema", scheme.code);
+      else url.searchParams.delete("esquema");
+      history.replaceState(null, "", url);
       form.reset();
       $("schemeEditorTitle").textContent = scheme?.code || "Nuevo esquema";
       for (const [key, id] of [["code","schemeCode"],["title","schemeTitle"],["family","schemeFamily"],["criteria","schemeCriteria"]]) {
@@ -220,7 +216,6 @@ window.MR_ESQUEMAS = (() => {
         await Promise.allSettled(uploadedKeys.map(deleteFile));
         throw error;
       }
-      refreshOptions();
     }
 
     async function storeSvg(file) {
@@ -341,19 +336,13 @@ window.MR_ESQUEMAS = (() => {
       $("schemeCompareDialog").showModal();
     };
 
-    fieldSelect.onchange = () => {
-      const field = $("d_esquema");
-      const current = field.value.split("|").map(value => value.trim()).filter(Boolean);
-      const scheme = getByCode(fieldSelect.value);
-      fieldSelect.value = "";
-      if (!scheme || current.some(value => codes(scheme).includes(recordedCode(value)))) return;
-      field.value = [...current, scheme.code].join(" | ");
-      field.dispatchEvent(new Event("blur"));
-      toast(scheme.code + " añadido al campo.");
-    };
+    function show(code) {
+      const scheme = getByCode(normalizeCode(code));
+      if (scheme) edit(scheme.uid);
+      else render();
+    }
 
-    refreshOptions();
-    return {render, refreshOptions};
+    return {render, show};
   }
 
   return {mount, withPublished, publishedFiles};
