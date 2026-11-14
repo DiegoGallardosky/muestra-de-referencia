@@ -1203,6 +1203,22 @@
     return Number.isFinite(n)?n:0;
   }
 
+  if($("centralBackupFile")) $("centralBackupFile").onchange=e=>{
+    const f=e.target.files?.[0];
+    const box=$("centralBackupName");
+    if(box){
+      if(f){
+        box.textContent="Archivo seleccionado: "+f.name+" · "+(f.size/1024/1024).toFixed(1)+" MB";
+        box.classList.add("has-file");
+      }else{
+        box.textContent="Ningún archivo seleccionado";
+        box.classList.remove("has-file");
+      }
+    }
+    const status=$("centralMigrationStatus");
+    if(status) status.textContent=f?"Respaldo listo para verificar y migrar.":"";
+  };
+
   if($("migrateCentralBtn")) $("migrateCentralBtn").onclick=async()=>{
     const file=$("centralBackupFile")?.files?.[0];
     const key=$("centralMigrationKey")?.value?.trim();
