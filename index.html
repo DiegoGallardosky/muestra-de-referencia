@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#10251d">
   <title>Muestra de referencia · Tradición San Francisco</title>
-  <link rel="stylesheet" href="styles.css?v=20261114-1252">
+  <link rel="stylesheet" href="styles.css?v=20261114-1615">
   <style>
     #inicio .scheme-entry {
       display: flex;
@@ -198,7 +198,7 @@
         <article><h3>Matriz SPSS</h3><p>Una fila por campo decorativo, la unidad de análisis, con variables de pieza y técnicas convertidas a 0/1.</p><button id="exportSpss" class="primary">Descargar matriz_spss.csv</button></article>
         <article><h3>Diccionario</h3><p>Descripción de variables y codificación básica para documentar los análisis.</p><button id="exportDictionary" class="secondary">Descargar diccionario.csv</button></article>
         <article><h3>Respaldo de datos</h3><p>Exporta o importa solamente los datos textuales.</p><button id="exportJson" class="secondary">Exportar JSON</button><label class="import-label">Importar JSON<input id="importJson" type="file" accept=".json,application/json"></label></article>
-        <article><h3>Migración a base central</h3><p>Usá el respaldo maestro para cargar una sola vez piezas, campos, dibujos y fotografías en Supabase.</p><button id="exportFullBackup" class="secondary">Crear respaldo maestro</button><label class="import-label">Seleccionar respaldo maestro<input id="centralBackupFile" type="file" accept=".json,application/json"></label><label>Clave de migración<input id="centralMigrationKey" type="password" autocomplete="off" placeholder="Clave de un solo uso"></label><button id="migrateCentralBtn" class="primary" type="button">Migrar esta base a Supabase</button><progress id="centralMigrationProgress" max="95" value="0" class="hidden"></progress><small id="centralMigrationStatus"></small><details><summary>Restaurar una copia local</summary><label class="import-label">Restaurar respaldo maestro<input id="importFullBackup" type="file" accept=".json,application/json"></label><small id="fullBackupStatus"></small></details></article>
+        <article class="central-migration-card"><h3>Migración a base central</h3><p>Usá el respaldo maestro para cargar una sola vez piezas, campos, dibujos y fotografías en Supabase.</p><div class="central-migration-controls"><button id="exportFullBackup" class="secondary" type="button">Crear respaldo maestro</button><label class="central-file-picker"><span>Seleccionar respaldo maestro</span><input id="centralBackupFile" type="file" accept=".json,application/json"></label><div id="centralBackupName" class="central-file-name">Ningún archivo seleccionado</div><label class="central-key-label"><span>Clave de migración</span><input id="centralMigrationKey" type="password" autocomplete="off" placeholder="Clave de un solo uso"></label><button id="migrateCentralBtn" class="primary" type="button">Migrar esta base a Supabase</button><progress id="centralMigrationProgress" max="95" value="0" class="hidden"></progress><small id="centralMigrationStatus" class="central-migration-status"></small></div><details><summary>Restaurar una copia local</summary><label class="import-label">Restaurar respaldo maestro<input id="importFullBackup" type="file" accept=".json,application/json"></label><small id="fullBackupStatus"></small></details></article>
         <article><h3>Auditoría de integridad</h3><p>Revisa IDs, relaciones pieza–campo–dibujo, sectores incompatibles y registros incompletos.</p><div class="audit-actions"><button id="runAudit" class="secondary">Auditar base</button><button id="repairIds" class="secondary">Corregir secuencia de IDs</button></div><div id="auditSummary" class="audit-summary"></div></article>
         <article><h3>Estado de persistencia</h3><p>Esta versión todavía guarda los datos localmente en el navegador. La migración a Supabase convertirá la muestra en una única base central accesible desde cualquier dispositivo.</p></article>
       </div>
@@ -210,6 +210,6 @@
 
   <script src="data.js?v=20261114-1145"></script>
   <script src="migrations.js?v=20261114-1145"></script>
-  <script src="app.js?v=20261114-1252"></script>
+  <script src="app.js?v=20261114-1615"></script>
 </body>
 </html>
