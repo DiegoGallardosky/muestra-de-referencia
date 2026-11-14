@@ -24,6 +24,92 @@
   const $ = (id) => document.getElementById(id);
   const esc = (s="") => String(s).replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]));
   const nowIso = () => new Date().toISOString();
+  const CENTRAL_DB_READ = {
+    url:"https://flgphfyywoflvlvkeewe.supabase.co",
+    publishableKey:"sb_publishable_s71OVIx3xZ_AEAGg0D97nw_2TQrj9T5",
+    bucket:"reference-media"
+  };
+  let centralMode=false;
+  const centralMediaByLocalKey=new Map();
+
+  async function centralFetch(path){
+    const res=await fetch(CENTRAL_DB_READ.url+"/rest/v1/"+path,{
+      headers:{apikey:CENTRAL_DB_READ.publishableKey}
+    });
+    if(!res.ok)throw new Error(await res.text());
+    return res.json();
+  }
+
+  function storagePublicUrl(path){
+    return CENTRAL_DB_READ.url+"/storage/v1/object/public/"+CENTRAL_DB_READ.bucket+"/"+path;
+  }
+
+  async function loadCentralData(){
+    try{
+      const [pieces,fields,drawings,media,meta]=await Promise.all([
+        centralFetch("pieces?select=*&order=display_order.asc"),
+        centralFetch("fields?select=*"),
+        centralFetch("drawings?select=*"),
+        centralFetch("media_assets?select=source_local_key,storage_path"),
+        centralFetch("app_meta?key=eq.canonical_migration&select=value")
+      ]);
+      const m=meta?.[0]?.value;
+      if(!m?.verified || pieces.length!==40 || fields.length!==56 || drawings.length!==55 || media.length!==95) return false;
+
+      centralMediaByLocalKey.clear();
+      media.forEach(x=>{if(x.source_local_key&&x.storage_path)centralMediaByLocalKey.set(x.source_local_key,x.storage_path);});
+
+      const pByUid=new Map(pieces.map(p=>[p.uid,p]));
+      const fByUid=new Map(fields.map(f=>[f.uid,f]));
+      const dByUid=new Map(drawings.map(d=>[d.uid,d]));
+
+      const central={
+        version:"central-1",
+        options:deepClone(SEED.options||{}),
+        pieces:pieces.map(p=>({
+          ...(p.source_record||{}),
+          id:p.visible_id,uid:p.uid,legacy_id:p.legacy_id||"",id_history:p.id_history||[],
+          created_order:p.created_order,display_order:p.display_order,sample_group:p.sample_group||"sin_clasificar",
+          caja:p.caja||"",sigla:p.sigla||"",sitio:p.sitio||"",coleccion:p.coleccion||"",
+          publicacion:p.publicacion||"",pagina:p.pagina||"",forma:p.forma||"",forma_otro:p.forma_otro||"",
+          integridad:p.integridad||"",fotogrametria_url:p.fotogrametria_url||"",observaciones:p.observaciones||"",
+          photo_path:p.photo_path||"",updated_at:p.updated_at
+        })),
+        fields:fields.map(f=>({
+          ...(f.source_record||{}),
+          id:f.visible_id,uid:f.uid,legacy_id:f.legacy_id||"",id_history:f.id_history||[],
+          piece_uid:f.piece_uid,piece_id:pByUid.get(f.piece_uid)?.visible_id||f.source_record?.piece_id||"",
+          catalog_code:f.catalog_code||"",nombre:f.nombre||"",nombre_otro:f.nombre_otro||"",
+          tecnicas:f.tecnicas||[],tecnica_otro:f.tecnica_otro||"",esquemas:f.esquemas||[],
+          clase_simetria:f.clase_simetria||"",colores:f.colores||"",observaciones:f.observaciones||"",
+          created_order:f.created_order,updated_at:f.updated_at
+        })),
+        designs:drawings.map(d=>({
+          ...(d.source_record||{}),
+          id:d.visible_id,uid:d.uid,legacy_id:d.legacy_id||"",id_history:d.id_history||[],
+          piece_uid:d.piece_uid||"",piece_id:pByUid.get(d.piece_uid)?.visible_id||d.source_record?.piece_id||"",
+          field_uid:d.field_uid||"",field_id:fByUid.get(d.field_uid)?.visible_id||d.source_record?.field_id||"",
+          ref_original:d.ref_original||"",drawing_path:d.drawing_path||"",observaciones:d.observaciones||"",
+          created_order:d.created_order,updated_at:d.updated_at
+        }))
+      };
+      central.fields.forEach(f=>{
+        if(!f.design_id){
+          const d=central.designs.find(x=>x.field_uid&&x.field_uid===f.uid);
+          if(d)f.design_id=d.id;
+        }
+      });
+      data=migrateData(central);
+      centralMode=true;
+      selectedPieceId=data.pieces[0]?.id||"";
+      selectedDesignId=data.designs[0]?.id||"";
+      return true;
+    }catch(err){
+      console.error("No se pudo cargar la base central",err);
+      return false;
+    }
+  }
+
 
   function deepClone(x){ return JSON.parse(JSON.stringify(x)); }
 
@@ -255,6 +341,11 @@
   async function previewFile(key, containerId){
     const box=$(containerId); if(!box) return;
     box.innerHTML='<span class="placeholder">Sin archivo</span>';
+    if(centralMode && centralMediaByLocalKey.has(key)){
+      const img=document.createElement("img");
+      img.src=storagePublicUrl(centralMediaByLocalKey.get(key));img.alt="archivo";
+      box.innerHTML="";box.appendChild(img);return;
+    }
     const file=await getFile(key); if(!file) return;
     const url=URL.createObjectURL(file);
     const img=document.createElement("img");
@@ -263,6 +354,7 @@
     box.innerHTML=""; box.appendChild(img);
   }
   async function mediaUrl(key){
+    if(centralMode && centralMediaByLocalKey.has(key)) return storagePublicUrl(centralMediaByLocalKey.get(key));
     const file=await getFile(key); if(!file) return null;
     return URL.createObjectURL(file);
   }
@@ -745,8 +837,8 @@
     if(!ds.length){box.innerHTML='<p class="design-list-help">Esta pieza todavía no tiene dibujos vinculados a campos decorativos.</p>';return;}
     box.innerHTML="";
     for(const d of ds){
-      const file=await getFile("design:"+d.id);
-      const url=file?URL.createObjectURL(file):null;
+      const url=await mediaUrl("design:"+d.id);
+      const file=centralMode?null:await getFile("design:"+d.id);
       const row=document.createElement("article");
       row.className="piece-linked-design-row";
       row.innerHTML=`
@@ -754,7 +846,7 @@
         <div class="piece-linked-design-meta">
           <strong>${esc(d.id)}</strong>
           <small>${(()=>{const f=data.fields.find(x=>x.id===d.field_id);const es=(f?.esquemas&&f.esquemas.length)?f.esquemas.join(" | "):(d.esquema||"esquema pendiente");const si=f?.clase_simetria||d.clase_simetria||"simetría pendiente";return esc(es+" · "+si);})()}</small>
-          <div class="piece-linked-design-actions">
+          <div class="piece-linked-design-actions">${centralMode?'<span class="chip">Lectura central</span>':''}
             <label class="design-upload-btn">${file?"Reemplazar dibujo":"Adjuntar dibujo"}<input type="file" accept="image/*,.svg" data-editor-design-upload="${esc(d.id)}"></label>
             <button type="button" class="mini" data-edit-design="${esc(d.id)}">Editar datos del dibujo</button>
             ${file?'<button type="button" class="danger-link" data-remove-design-image="'+esc(d.id)+'">Quitar imagen</button>':''}
@@ -1637,7 +1729,21 @@
     else {audioEngine.stop();audioEngine=null;b.setAttribute("aria-pressed","false");b.textContent="◉ Selva";toast("Ambiente sonoro desactivado");}
   };
 
+  async function initApp(){
+    const loaded=await loadCentralData();
+    if(loaded){
+      const editNav=document.querySelector('[data-nav="editar"]');
+      if(editNav){editNav.disabled=true;editNav.title="Edición central protegida: se habilitará con acceso autenticado";}
+      ["newPieceBtn","newDesignBtn","movePieceBtn","addFieldBtn"].forEach(id=>{const el=$(id);if(el)el.disabled=true;});
+      document.querySelectorAll("#pieceForm input,#pieceForm select,#pieceForm textarea,#pieceForm button,#designForm input,#designForm select,#designForm textarea,#designForm button").forEach(el=>{
+        if(el.id!=="closeDialog")el.disabled=true;
+      });
+      const p=document.querySelector("#editar .section-head p");
+      if(p)p.textContent="La base central está activa. La edición quedará habilitada únicamente con acceso autenticado.";
+    }
+    renderPieceList();renderDesignList();loadPieceForm(selectedPieceId);renderCatalog();
+    if(!loaded)applyPendingCommands();
+  }
   // Initial render
-  renderPieceList();renderDesignList();loadPieceForm(selectedPieceId);renderCatalog();
-  applyPendingCommands();
+  initApp();
 })();
