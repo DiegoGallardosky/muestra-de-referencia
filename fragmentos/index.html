@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fragmentos · Muestra de referencia</title>
+  <link rel="stylesheet" href="../styles.css?v=20261006-1120">
+  <link rel="stylesheet" href="fragmentos.css">
+  <script defer src="fragmentos.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="../#inicio">
+      <span class="brand-mark">SF</span>
+      <span><strong>Muestra de referencia</strong><small>Tradición San Francisco</small></span>
+    </a>
+    <a class="secondary reference-link" href="../esquemas/galeria.html">Galería de esquemas</a>
+  </header>
+  <main>
+    <div class="section-head">
+      <div><h1>Identificar diseños a partir de fragmentos</h1>
+        <p>Registrá los rasgos que podés observar y cotejá el fragmento con los dibujos y las fotos de la muestra.</p>
+      </div>
+    </div>
+    <div class="reference-layout">
+      <aside class="editor-card reference-controls">
+        <h2>Tu fragmento</h2>
+        <label for="fragmentPhoto">Foto para consultar en este navegador</label>
+        <input id="fragmentPhoto" type="file" accept="image/png,image/jpeg,image/webp">
+        <button type="button" class="reference-photo" id="openFragmentPhoto" hidden><img alt="Foto del fragmento" id="fragmentPreview"></button>
+        <h2>Rasgos observados</h2>
+        <p class="reference-note">Dejá en blanco los rasgos que la fractura o la foto no permiten observar.</p>
+        <form id="referenceFilters">
+          <label>Forma probable<select name="forma"><option value="">Cualquiera</option></select></label>
+          <label>Campo decorativo<select name="campo"><option value="">Cualquiera</option></select></label>
+          <label>Técnica decorativa<select name="tecnica"><option value="">Cualquiera</option></select></label>
+          <label>Clase de simetría<select name="simetria"><option value="">Cualquiera</option></select></label>
+          <label>Esquema candidato<select name="esquema"><option value="">Cualquiera</option></select></label>
+          <label>Buscar por rótulo, ID o sitio<input id="referenceSearch" type="search" placeholder="Ej. pájaro, MR-D0010"></label>
+          <button type="reset" class="secondary">Limpiar filtros</button>
+        </form>
+      </aside>
+      <section aria-labelledby="referenceTitle">
+        <div class="reference-heading">
+          <h2 id="referenceTitle">Dibujos y piezas de referencia</h2>
+          <p id="referenceCount" role="status">Cargando la muestra…</p>
+        </div>
+        <p id="referenceHint" class="reference-note">La coincidencia de rasgos orienta el cotejo visual. Confirmá la clasificación en el dibujo completo y en su campo decorativo.</p>
+        <p id="referenceUnlinked" class="reference-note"></p>
+        <div class="reference-list" id="referenceList"></div>
+      </section>
+    </div>
+  </main>
+  <dialog id="referenceViewer" aria-labelledby="referenceImageTitle">
+    <form method="dialog"><button class="dialog-close" aria-label="Cerrar imagen">×</button></form>
+    <h2 id="referenceImageTitle"></h2><img id="referenceFullImage" alt="">
+  </dialog>
+</body>
+</html>
