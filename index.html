@@ -45,6 +45,7 @@
       <button class="nav-btn" data-nav="editar">Editar</button>
       <button class="nav-btn" data-nav="exportar">SPSS / Exportar</button>
     </nav>
+    <button id="authButton" class="sound-btn" type="button">Iniciar sesión</button>
     <button id="jungleToggle" class="sound-btn" aria-pressed="false" title="Activar ambiente sonoro de selva">◉ Selva</button>
   </header>
 
@@ -203,13 +204,39 @@
         <article><h3>Estado de persistencia</h3><p>Esta versión todavía guarda los datos localmente en el navegador. La migración a Supabase convertirá la muestra en una única base central accesible desde cualquier dispositivo.</p></article>
       </div>
     </section>
-  </main><div id="appVersion" style="position:fixed;right:8px;bottom:6px;font-size:10px;opacity:.45;z-index:20">v2026.11.14-central-live</div>
+  </main><div id="appVersion" style="position:fixed;right:8px;bottom:6px;font-size:10px;opacity:.45;z-index:20">v2026.11.14-central-edit</div>
 
+  <dialog id="authDialog" class="auth-dialog">
+    <button id="closeAuthDialog" class="dialog-close" type="button">×</button>
+    <div id="authLoggedOut">
+      <span class="eyebrow">EDICIÓN PROTEGIDA</span>
+      <h2>Acceso de editor</h2>
+      <p>Iniciá sesión para editar la base central desde cualquier dispositivo.</p>
+      <label>Email<input id="authEmail" type="email" autocomplete="email"></label>
+      <label>Contraseña<input id="authPassword" type="password" autocomplete="current-password"></label>
+      <div class="auth-actions">
+        <button id="loginBtn" class="primary" type="button">Iniciar sesión</button>
+        <button id="signupBtn" class="secondary" type="button">Crear cuenta</button>
+      </div>
+      <small id="authStatus"></small>
+    </div>
+    <div id="authLoggedIn" class="hidden">
+      <span class="eyebrow">CUENTA</span>
+      <h2 id="authUserLabel">Sesión activa</h2>
+      <p id="authEditorState">Verificando permisos…</p>
+      <div id="editorClaimBox" class="hidden">
+        <label>Clave de activación del editor<input id="editorSetupCode" type="password" autocomplete="off"></label>
+        <button id="claimEditorBtn" class="primary" type="button">Activar edición</button>
+      </div>
+      <button id="logoutBtn" class="secondary" type="button">Cerrar sesión</button>
+    </div>
+  </dialog>
   <dialog id="detailDialog"><button id="closeDialog" class="dialog-close">×</button><div id="dialogContent"></div></dialog>
   <div id="toast" class="toast" role="status"></div>
 
   <script src="data.js?v=20261114-1145"></script>
   <script src="migrations.js?v=20261114-1145"></script>
-  <script src="app.js?v=20261114-1625"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.95.0/dist/umd/supabase.min.js"></script>
+  <script src="app.js?v=20261114-1705"></script>
 </body>
 </html>
