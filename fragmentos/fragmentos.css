@@ -1,0 +1,31 @@
+.reference-link{display:inline-block;text-decoration:none}
+.section-head h1{font:700 clamp(2.2rem,5vw,3.4rem) Georgia,serif;margin:.15em 0}
+.reference-layout{display:grid;grid-template-columns:minmax(245px,300px) minmax(0,1fr);gap:24px;align-items:start}
+.reference-controls label,.reference-controls select{display:block;width:100%}
+.reference-controls label{font-size:.9rem;margin:10px 0}
+.reference-controls select{margin-top:4px}
+.reference-controls input{max-width:100%}
+.reference-controls h2,.reference-heading h2{margin:0 0 8px}
+.reference-photo{margin:12px 0 0}
+.reference-photo img{display:block;max-width:100%;max-height:180px}
+.reference-controls input+h2,.reference-controls .reference-photo+h2{margin-top:25px}
+.reference-heading{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.reference-heading p{margin:0}
+.reference-note,.reference-caption{color:var(--muted);font-size:.9rem;line-height:1.5}
+.reference-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:16px}
+.reference-card{padding:16px;border:1px solid var(--line);border-radius:14px;background:var(--panel);min-width:0}
+.reference-card h3{margin:0 0 8px;font-size:1.05rem}
+.reference-images{display:grid;grid-template-columns:1.5fr 1fr;gap:8px}
+.reference-images figure{margin:0;min-width:0}
+.reference-images button,.reference-photo{padding:0;border:0;border-radius:7px;overflow:hidden;cursor:zoom-in;background:var(--paper)}
+.reference-images button{display:block;width:100%}
+.reference-images img{display:block;width:100%;height:145px;object-fit:contain}
+.reference-images figcaption{font-size:.8rem;color:var(--muted);margin-top:4px}
+.reference-card p{margin:10px 0 0;overflow-wrap:anywhere}
+.reference-card a{color:var(--lime)}
+#referenceFullImage{display:block;width:100%;max-height:72vh;object-fit:contain;background:var(--paper);border-radius:8px}
+#referenceImageTitle{padding-right:30px}
+@media(max-width:760px){.reference-layout{grid-template-columns:1fr}}
+
+#referenceUnlinked:empty{display:none}
+.reference-controls input[type=search]{display:block;width:100%;margin-top:4px}
