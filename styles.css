@@ -156,3 +156,18 @@ dialog{
 .confirm-delete-inline>span{font-size:12px;color:var(--muted);font-weight:800}
 .danger-confirm-yes{border:1px solid rgba(220,90,90,.5);background:rgba(220,90,90,.14);color:#ffb0b0;border-radius:8px;padding:8px 10px;font-weight:900;cursor:pointer}
 .audit-actions{display:flex;gap:8px;flex-wrap:wrap}
+
+.central-migration-card{display:flex;flex-direction:column;gap:14px}
+.central-migration-card h3,.central-migration-card p{margin-bottom:0}
+.central-migration-controls{display:flex;flex-direction:column;gap:12px;align-items:stretch}
+.central-migration-controls .primary,.central-migration-controls .secondary{width:100%;text-align:center}
+.central-file-picker{display:block;border:1px solid var(--line);border-radius:12px;padding:14px 16px;cursor:pointer;font-weight:800;text-align:center;background:rgba(255,255,255,.02)}
+.central-file-picker:hover{border-color:rgba(194,215,137,.5);color:var(--lime)}
+.central-file-picker input{position:absolute;left:-9999px;width:1px;height:1px;opacity:0}
+.central-file-name{padding:10px 12px;border-radius:10px;background:rgba(194,215,137,.08);color:var(--muted);font-size:13px;overflow-wrap:anywhere}
+.central-file-name.has-file{color:var(--lime);border:1px solid rgba(194,215,137,.25)}
+.central-key-label{display:flex;flex-direction:column;gap:7px;color:var(--white)}
+.central-key-label span{font-size:13px;color:var(--muted);font-weight:700}
+.central-key-label input{width:100%;min-width:0}
+.central-migration-status{display:block;line-height:1.45;color:var(--muted)}
+.central-migration-controls progress{width:100%;height:12px}
