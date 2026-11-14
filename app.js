@@ -1084,7 +1084,7 @@
     url:"https://flgphfyywoflvlvkeewe.supabase.co",
     publishableKey:"sb_publishable_s71OVIx3xZ_AEAGg0D97nw_2TQrj9T5",
     batchId:"61def823-6e99-437e-8ed6-94cf7c544610",
-    backupSha256:"ef55bddee4cd02f9aadd82cf950fe40a56fddef3f13f03c399c72671967d6e48"
+    backupSha256:"51e5b1ec7acade4e769b64e9f27ec53c2848fb92b9272a92d94433ddbcc66ccf"
   };
 
   async function sha256Hex(text){
@@ -1213,6 +1213,7 @@
       if(status)status.textContent="Verificando respaldo maestro…";
       const rawText=await file.text();
       const hash=await sha256Hex(rawText.replace(/^\uFEFF/,""));
+      if(hash!==CENTRAL_DB.backupSha256)throw new Error("Este archivo no coincide con el respaldo maestro auditado.");
       const payload=JSON.parse(rawText.replace(/^\uFEFF/,""));
       if(payload?.format!=="muestra-referencia-full-backup")throw new Error("El archivo no es un respaldo completo válido.");
       if((payload.data?.pieces||[]).length!==40 || (payload.data?.fields||[]).length!==56 || (payload.data?.designs||[]).length!==55 || (payload.media||[]).length!==95){
