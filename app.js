@@ -30,7 +30,142 @@
     bucket:"reference-media"
   };
   let centralMode=false;
+  let editorMode=false;
+  let centralSyncTimer=null;
   const centralMediaByLocalKey=new Map();
+  const supabaseClient=window.supabase?.createClient
+    ? window.supabase.createClient(CENTRAL_DB_READ.url,CENTRAL_DB_READ.publishableKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}})
+    : null;
+
+  function setEditingEnabled(enabled){
+    editorMode=!!enabled;
+    const editNav=document.querySelector('[data-nav="editar"]');
+    if(editNav){
+      editNav.disabled=!editorMode;
+      editNav.title=editorMode?"Editar base central":"Iniciá sesión con una cuenta autorizada para editar";
+    }
+    document.querySelectorAll("#pieceForm input,#pieceForm select,#pieceForm textarea,#pieceForm button,#designForm input,#designForm select,#designForm textarea,#designForm button,#newPieceBtn,#newDesignBtn,#movePieceBtn,#addFieldBtn").forEach(el=>{
+      el.disabled=!editorMode;
+    });
+    const p=document.querySelector("#editar .section-head p");
+    if(p)p.textContent=editorMode
+      ?"Edición central activa: cada guardado se sincroniza con Supabase."
+      :"La base central está en modo consulta. Iniciá sesión para editar.";
+    if($("authButton"))$("authButton").textContent=editorMode?"Editor activo":"Iniciar sesión";
+  }
+
+  async function refreshAuthUI(){
+    if(!supabaseClient)return;
+    const {data:{session}}=await supabaseClient.auth.getSession();
+    const logged=!!session?.user;
+    $("authLoggedOut")?.classList.toggle("hidden",logged);
+    $("authLoggedIn")?.classList.toggle("hidden",!logged);
+    if(!logged){setEditingEnabled(false);return;}
+    if($("authUserLabel"))$("authUserLabel").textContent=session.user.email||"Sesión activa";
+    const {data:row}=await supabaseClient.from("editors").select("user_id").eq("user_id",session.user.id).maybeSingle();
+    const isEditor=!!row;
+    setEditingEnabled(isEditor);
+    if($("authEditorState"))$("authEditorState").textContent=isEditor
+      ?"Cuenta autorizada para editar la base central."
+      :"La cuenta está autenticada, pero todavía no tiene permiso de edición.";
+    $("editorClaimBox")?.classList.toggle("hidden",isEditor);
+  }
+
+  function centralPieceRowLive(p){
+    return {
+      uid:p.uid,visible_id:p.id,legacy_id:p.legacy_id||null,id_history:p.id_history||[],
+      created_order:p.created_order??null,display_order:p.display_order??null,sample_group:p.sample_group||null,
+      caja:p.caja||null,sigla:p.sigla||null,sitio:p.sitio||null,coleccion:p.coleccion||null,
+      publicacion:p.publicacion||null,pagina:p.pagina||null,forma:p.forma||null,forma_otro:p.forma_otro||null,
+      integridad:p.integridad||null,fotogrametria_url:p.fotogrametria_url||null,observaciones:p.observaciones||null,
+      photo_path:p.photo_path||null,updated_at:p.updated_at||nowIso(),source_record:p
+    };
+  }
+  function centralFieldRowLive(f){
+    return {
+      uid:f.uid,visible_id:f.id,legacy_id:f.legacy_id||null,id_history:f.id_history||[],
+      piece_uid:f.piece_uid||data.pieces.find(p=>p.id===f.piece_id)?.uid||null,
+      catalog_code:f.catalog_code||null,nombre:f.nombre||null,nombre_otro:f.nombre_otro||null,
+      tecnicas:f.tecnicas||[],tecnica_otro:f.tecnica_otro||null,esquemas:f.esquemas||[],
+      clase_simetria:f.clase_simetria||null,colores:f.colores||null,observaciones:f.observaciones||null,
+      created_order:f.created_order??null,updated_at:f.updated_at||nowIso(),source_record:f
+    };
+  }
+  function centralDrawingRowLive(d){
+    return {
+      uid:d.uid,visible_id:d.id,legacy_id:d.legacy_id||null,id_history:d.id_history||[],
+      piece_uid:d.piece_uid||data.pieces.find(p=>p.id===d.piece_id)?.uid||null,
+      field_uid:d.field_uid||data.fields.find(f=>f.id===d.field_id)?.uid||null,
+      ref_original:d.ref_original||null,drawing_path:d.drawing_path||null,observaciones:d.observaciones||null,
+      created_order:d.created_order??null,updated_at:d.updated_at||nowIso(),source_record:d
+    };
+  }
+
+  async function syncAllCentral(){
+    if(!centralMode||!editorMode||!supabaseClient)return;
+    try{
+      const pieceRows=data.pieces.map(centralPieceRowLive);
+      const fieldRows=data.fields.map(centralFieldRowLive);
+      const drawingRows=data.designs.map(centralDrawingRowLive);
+      let r=await supabaseClient.from("pieces").upsert(pieceRows,{onConflict:"uid"});if(r.error)throw r.error;
+      r=await supabaseClient.from("fields").upsert(fieldRows,{onConflict:"uid"});if(r.error)throw r.error;
+      r=await supabaseClient.from("drawings").upsert(drawingRows,{onConflict:"uid"});if(r.error)throw r.error;
+
+      const [cp,cf,cd]=await Promise.all([
+        supabaseClient.from("pieces").select("uid"),
+        supabaseClient.from("fields").select("uid"),
+        supabaseClient.from("drawings").select("uid")
+      ]);
+      if(cp.error||cf.error||cd.error)throw cp.error||cf.error||cd.error;
+      const keepP=new Set(pieceRows.map(x=>x.uid)),keepF=new Set(fieldRows.map(x=>x.uid)),keepD=new Set(drawingRows.map(x=>x.uid));
+      for(const row of cp.data||[])if(!keepP.has(row.uid))await supabaseClient.from("pieces").delete().eq("uid",row.uid);
+      for(const row of cf.data||[])if(!keepF.has(row.uid))await supabaseClient.from("fields").delete().eq("uid",row.uid);
+      for(const row of cd.data||[])if(!keepD.has(row.uid))await supabaseClient.from("drawings").delete().eq("uid",row.uid);
+      if($("authButton"))$("authButton").title="Última sincronización: "+new Date().toLocaleTimeString();
+    }catch(err){
+      console.error("Error de sincronización central",err);
+      toast("No se pudo sincronizar con la base central");
+    }
+  }
+  function scheduleCentralSync(){
+    if(!centralMode||!editorMode)return;
+    clearTimeout(centralSyncTimer);
+    centralSyncTimer=setTimeout(syncAllCentral,500);
+  }
+
+  async function uploadCentralLiveMedia(key,file){
+    if(!centralMode||!editorMode||!supabaseClient)return false;
+    const [kind,id]=String(key).split(":");
+    const rec=kind==="piece"?data.pieces.find(p=>p.id===id):data.designs.find(d=>d.id===id);
+    if(!rec?.uid)return false;
+    const folder=kind==="piece"?"pieces":"drawings";
+    const safe=(file.name||"archivo").replace(/[^a-zA-Z0-9._-]/g,"_");
+    const path="live/"+folder+"/"+rec.uid+"/"+safe;
+    const {error}=await supabaseClient.storage.from(CENTRAL_DB_READ.bucket).upload(path,file,{upsert:true,contentType:file.type||undefined});
+    if(error)throw error;
+    const role=kind==="piece"?"piece_photo":"drawing_file";
+    const row={role,original_filename:file.name||safe,mime_type:file.type||null,byte_size:file.size||null,storage_path:path,source_local_key:key,metadata:{live:true}};
+    if(kind==="piece")row.piece_uid=rec.uid;else row.drawing_uid=rec.uid;
+    const up=await supabaseClient.from("media_assets").upsert(row,{onConflict:"storage_path"});
+    if(up.error)throw up.error;
+    centralMediaByLocalKey.set(key,path);
+    if(kind==="piece"){rec.photo_path=path;rec.photo_file_name=file.name;}
+    else{rec.drawing_path=path;rec.design_file_name=file.name;}
+    scheduleCentralSync();
+    return true;
+  }
+
+  async function deleteCentralLiveMedia(key){
+    if(!centralMode||!editorMode||!supabaseClient)return false;
+    const path=centralMediaByLocalKey.get(key);
+    if(path){
+      const r=await supabaseClient.storage.from(CENTRAL_DB_READ.bucket).remove([path]);
+      if(r.error)throw r.error;
+      await supabaseClient.from("media_assets").delete().eq("storage_path",path);
+      centralMediaByLocalKey.delete(key);
+    }
+    return true;
+  }
 
   async function centralFetch(path){
     const res=await fetch(CENTRAL_DB_READ.url+"/rest/v1/"+path,{
@@ -54,7 +189,7 @@
         centralFetch("app_meta?key=eq.canonical_migration&select=value")
       ]);
       const m=meta?.[0]?.value;
-      if(!m?.verified || pieces.length!==40 || fields.length!==56 || drawings.length!==55 || media.length!==95) return false;
+      if(!m?.verified || !pieces.length) return false;
 
       centralMediaByLocalKey.clear();
       media.forEach(x=>{if(x.source_local_key&&x.storage_path)centralMediaByLocalKey.set(x.source_local_key,x.storage_path);});
@@ -262,6 +397,7 @@
     }catch(e){}
     localStorage.setItem(STORE_KEY, JSON.stringify(data));
     refreshStats();
+    scheduleCentralSync();
   }
   function toast(msg){
     const el=$("toast"); el.textContent=msg; el.classList.add("show");
@@ -277,6 +413,10 @@
     });
   }
   async function putFile(key,file){
+    if(centralMode&&editorMode){
+      await uploadCentralLiveMedia(key,file);
+      return;
+    }
     const db=await openDb();
     return new Promise((resolve,reject)=>{
       const tx=db.transaction(DB_STORE,"readwrite"); tx.objectStore(DB_STORE).put(file,key);
@@ -291,6 +431,10 @@
     });
   }
   async function deleteFile(key){
+    if(centralMode&&editorMode){
+      await deleteCentralLiveMedia(key);
+      return;
+    }
     const db=await openDb();
     return new Promise((resolve,reject)=>{
       const tx=db.transaction(DB_STORE,"readwrite"); tx.objectStore(DB_STORE).delete(key);
@@ -1729,17 +1873,37 @@
     else {audioEngine.stop();audioEngine=null;b.setAttribute("aria-pressed","false");b.textContent="◉ Selva";toast("Ambiente sonoro desactivado");}
   };
 
+  if($("authButton"))$("authButton").onclick=()=>{$("authDialog")?.showModal();refreshAuthUI();};
+  if($("closeAuthDialog"))$("closeAuthDialog").onclick=()=>$("authDialog")?.close();
+  if($("loginBtn"))$("loginBtn").onclick=async()=>{
+    const email=$("authEmail").value.trim(),password=$("authPassword").value;
+    const st=$("authStatus");if(st)st.textContent="Iniciando sesión…";
+    const {error}=await supabaseClient.auth.signInWithPassword({email,password});
+    if(error){if(st)st.textContent=error.message;return;}
+    if(st)st.textContent="";await refreshAuthUI();
+  };
+  if($("signupBtn"))$("signupBtn").onclick=async()=>{
+    const email=$("authEmail").value.trim(),password=$("authPassword").value;
+    const st=$("authStatus");if(st)st.textContent="Creando cuenta…";
+    const {data:sign,error}=await supabaseClient.auth.signUp({email,password,options:{emailRedirectTo:location.origin+location.pathname}});
+    if(error){if(st)st.textContent=error.message;return;}
+    if(st)st.textContent=sign.session?"Cuenta creada.":"Cuenta creada. Revisá tu email para confirmar y después iniciá sesión.";
+    await refreshAuthUI();
+  };
+  if($("claimEditorBtn"))$("claimEditorBtn").onclick=async()=>{
+    const code=$("editorSetupCode").value.trim();
+    const {data:ok,error}=await supabaseClient.rpc("claim_editor",{setup_code:code});
+    if(error){$("authEditorState").textContent=error.message;return;}
+    if(ok){$("editorSetupCode").value="";await refreshAuthUI();toast("Edición central activada");}
+  };
+  if($("logoutBtn"))$("logoutBtn").onclick=async()=>{await supabaseClient.auth.signOut();await refreshAuthUI();};
+  supabaseClient?.auth.onAuthStateChange(()=>setTimeout(refreshAuthUI,0));
+
   async function initApp(){
     const loaded=await loadCentralData();
     if(loaded){
-      const editNav=document.querySelector('[data-nav="editar"]');
-      if(editNav){editNav.disabled=true;editNav.title="Edición central protegida: se habilitará con acceso autenticado";}
-      ["newPieceBtn","newDesignBtn","movePieceBtn","addFieldBtn"].forEach(id=>{const el=$(id);if(el)el.disabled=true;});
-      document.querySelectorAll("#pieceForm input,#pieceForm select,#pieceForm textarea,#pieceForm button,#designForm input,#designForm select,#designForm textarea,#designForm button").forEach(el=>{
-        if(el.id!=="closeDialog")el.disabled=true;
-      });
-      const p=document.querySelector("#editar .section-head p");
-      if(p)p.textContent="La base central está activa. La edición quedará habilitada únicamente con acceso autenticado.";
+      setEditingEnabled(false);
+      await refreshAuthUI();
     }
     renderPieceList();renderDesignList();loadPieceForm(selectedPieceId);renderCatalog();
     if(!loaded)applyPendingCommands();
