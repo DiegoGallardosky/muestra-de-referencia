@@ -1079,6 +1079,179 @@
     }
   };
 
+
+  const CENTRAL_DB = {
+    url:"https://flgphfyywoflvlvkeewe.supabase.co",
+    publishableKey:"sb_publishable_s71OVIx3xZ_AEAGg0D97nw_2TQrj9T5",
+    batchId:"61def823-6e99-437e-8ed6-94cf7c544610",
+    backupSha256:"ef55bddee4cd02f9aadd82cf950fe40a56fddef3f13f03c399c72671967d6e48"
+  };
+
+  async function sha256Hex(text){
+    const buf=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(text));
+    return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,"0")).join("");
+  }
+
+  function centralHeaders(migrationKey,extra={}){
+    return {
+      "apikey":CENTRAL_DB.publishableKey,
+      "Content-Type":"application/json",
+      "x-migration-key":migrationKey,
+      ...extra
+    };
+  }
+
+  async function centralRest(path,{method="GET",migrationKey="",body=null,prefer=""}={}){
+    const headers=centralHeaders(migrationKey);
+    if(prefer)headers["Prefer"]=prefer;
+    const res=await fetch(CENTRAL_DB.url+"/rest/v1/"+path,{
+      method,headers,body:body==null?null:JSON.stringify(body)
+    });
+    const txt=await res.text();
+    if(!res.ok)throw new Error(txt||("HTTP "+res.status));
+    return txt?JSON.parse(txt):null;
+  }
+
+  function centralPieceRow(p){
+    return {
+      uid:p.uid,visible_id:p.id,legacy_id:p.legacy_id||null,id_history:p.id_history||[],
+      created_order:p.created_order??null,display_order:p.display_order??null,sample_group:p.sample_group||null,
+      caja:p.caja||null,sigla:p.sigla||null,sitio:p.sitio||null,coleccion:p.coleccion||null,
+      publicacion:p.publicacion||null,pagina:p.pagina||null,forma:p.forma||null,forma_otro:p.forma_otro||null,
+      integridad:p.integridad||null,fotogrametria_url:p.fotogrametria_url||null,observaciones:p.observaciones||null,
+      photo_path:p.photo_file_name?("migration-"+CENTRAL_DB.batchId+"/pieces/"+p.uid+"/"+p.photo_file_name):null,
+      updated_at:p.updated_at||nowIso(),source_record:p,migration_batch_id:CENTRAL_DB.batchId
+    };
+  }
+
+  function centralFieldRow(f){
+    return {
+      uid:f.uid,visible_id:f.id,legacy_id:f.legacy_id||null,id_history:f.id_history||[],
+      piece_uid:f.piece_uid,catalog_code:f.catalog_code||null,nombre:f.nombre||null,nombre_otro:f.nombre_otro||null,
+      tecnicas:f.tecnicas||[],tecnica_otro:f.tecnica_otro||null,esquemas:f.esquemas||[],
+      clase_simetria:f.clase_simetria||null,colores:f.colores||null,observaciones:f.observaciones||null,
+      created_order:f.created_order??null,updated_at:f.updated_at||nowIso(),source_record:f,
+      migration_batch_id:CENTRAL_DB.batchId
+    };
+  }
+
+  function centralDrawingRow(d){
+    return {
+      uid:d.uid,visible_id:d.id,legacy_id:d.legacy_id||null,id_history:d.id_history||[],
+      piece_uid:d.piece_uid||null,field_uid:d.field_uid||null,ref_original:d.ref_original||null,
+      drawing_path:d.design_file_name?("migration-"+CENTRAL_DB.batchId+"/drawings/"+d.uid+"/"+d.design_file_name):null,
+      observaciones:d.observaciones||null,created_order:d.created_order??null,
+      updated_at:d.updated_at||nowIso(),source_record:d,migration_batch_id:CENTRAL_DB.batchId
+    };
+  }
+
+  async function uploadCentralMedia(item,payload,migrationKey){
+    const [kind,visibleId]=String(item.key||"").split(":");
+    const record=kind==="piece"
+      ? payload.data.pieces.find(p=>p.id===visibleId)
+      : payload.data.designs.find(d=>d.id===visibleId);
+    if(!record)throw new Error("No se encontró el registro para "+item.key);
+    const folder=kind==="piece"?"pieces":"drawings";
+    const uid=record.uid;
+    const name=item.name||visibleId;
+    const storagePath="migration-"+CENTRAL_DB.batchId+"/"+folder+"/"+uid+"/"+name;
+    const m=String(item.data||"").match(/^data:([^;,]+)?(?:;[^,]*)?;base64,(.*)$/s);
+    if(!m)throw new Error("Archivo inválido: "+item.key);
+    const bin=atob(m[2]),bytes=new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
+
+    const res=await fetch(CENTRAL_DB.url+"/storage/v1/object/reference-media/"+storagePath,{
+      method:"POST",
+      headers:{
+        "apikey":CENTRAL_DB.publishableKey,
+        "x-upsert":"true",
+        "x-migration-key":migrationKey,
+        "Content-Type":item.type||m[1]||"application/octet-stream"
+      },
+      body:bytes
+    });
+    const txt=await res.text();
+    if(!res.ok)throw new Error("No se pudo subir "+item.key+": "+txt);
+
+    const raw=await crypto.subtle.digest("SHA-256",bytes);
+    const hash=[...new Uint8Array(raw)].map(b=>b.toString(16).padStart(2,"0")).join("");
+    const mediaRow={
+      role:kind==="piece"?"piece_photo":"drawing_file",
+      original_filename:item.name||null,mime_type:item.type||m[1]||null,byte_size:bytes.length,
+      sha256:hash,storage_path:storagePath,source_local_key:item.key,
+      original_last_modified:item.lastModified||null,metadata:{backup_name:item.name||null},
+      migration_batch_id:CENTRAL_DB.batchId
+    };
+    if(kind==="piece")mediaRow.piece_uid=uid;else mediaRow.drawing_uid=uid;
+    await centralRest("media_assets?on_conflict=storage_path",{
+      method:"POST",migrationKey,body:[mediaRow],prefer:"resolution=merge-duplicates"
+    });
+  }
+
+  async function countCentral(table,migrationKey){
+    const res=await fetch(CENTRAL_DB.url+"/rest/v1/"+table+"?select=uid&migration_batch_id=eq."+CENTRAL_DB.batchId,{
+      headers:{
+        "apikey":CENTRAL_DB.publishableKey,
+        "x-migration-key":migrationKey,
+        "Prefer":"count=exact",
+        "Range":"0-0"
+      }
+    });
+    if(!res.ok)throw new Error(await res.text());
+    const range=res.headers.get("content-range")||"";
+    const n=parseInt(range.split("/")[1],10);
+    return Number.isFinite(n)?n:0;
+  }
+
+  if($("migrateCentralBtn")) $("migrateCentralBtn").onclick=async()=>{
+    const file=$("centralBackupFile")?.files?.[0];
+    const key=$("centralMigrationKey")?.value?.trim();
+    const status=$("centralMigrationStatus"),progress=$("centralMigrationProgress");
+    if(!file){if(status)status.textContent="Seleccioná el respaldo maestro.";return;}
+    if(!key){if(status)status.textContent="Ingresá la clave de migración.";return;}
+    try{
+      if(status)status.textContent="Verificando respaldo maestro…";
+      const rawText=await file.text();
+      const hash=await sha256Hex(rawText.replace(/^\uFEFF/,""));
+      const payload=JSON.parse(rawText.replace(/^\uFEFF/,""));
+      if(payload?.format!=="muestra-referencia-full-backup")throw new Error("El archivo no es un respaldo completo válido.");
+      if((payload.data?.pieces||[]).length!==40 || (payload.data?.fields||[]).length!==56 || (payload.data?.designs||[]).length!==55 || (payload.media||[]).length!==95){
+        throw new Error("Los conteos no coinciden con el respaldo maestro auditado (40/56/55/95).");
+      }
+
+      if(status)status.textContent="Cargando 40 piezas…";
+      await centralRest("pieces?on_conflict=uid",{method:"POST",migrationKey:key,body:payload.data.pieces.map(centralPieceRow),prefer:"resolution=merge-duplicates"});
+      if(status)status.textContent="Cargando 56 campos…";
+      await centralRest("fields?on_conflict=uid",{method:"POST",migrationKey:key,body:payload.data.fields.map(centralFieldRow),prefer:"resolution=merge-duplicates"});
+      if(status)status.textContent="Cargando 55 dibujos…";
+      await centralRest("drawings?on_conflict=uid",{method:"POST",migrationKey:key,body:payload.data.designs.map(centralDrawingRow),prefer:"resolution=merge-duplicates"});
+
+      if(progress){progress.max=payload.media.length;progress.value=0;progress.classList.remove("hidden");}
+      let done=0;
+      for(const item of payload.media){
+        if(status)status.textContent="Subiendo fotografías y dibujos: "+done+"/"+payload.media.length+"…";
+        await uploadCentralMedia(item,payload,key);
+        done++;
+        if(progress)progress.value=done;
+      }
+
+      if(status)status.textContent="Verificando la base central…";
+      const counts={
+        pieces:await countCentral("pieces",key),
+        fields:await countCentral("fields",key),
+        drawings:await countCentral("drawings",key),
+        media:await countCentral("media_assets",key)
+      };
+      const ok=counts.pieces===40&&counts.fields===56&&counts.drawings===55&&counts.media===95;
+      if(!ok)throw new Error("La verificación final no coincide: "+JSON.stringify(counts));
+      if(status)status.textContent="✓ Migración verificada: 40 piezas · 56 campos · 55 dibujos · 95 archivos.";
+      toast("Base central migrada y verificada");
+    }catch(err){
+      console.error(err);
+      if(status)status.textContent="Error de migración: "+err.message;
+    }
+  };
+
   if($("importFullBackup")) $("importFullBackup").onchange=async e=>{
     const f=e.target.files?.[0];if(!f)return;
     const status=$("fullBackupStatus"); if(status)status.textContent="Importando respaldo…";
