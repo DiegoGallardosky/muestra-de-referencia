@@ -605,6 +605,7 @@
     return [p.forma||"Forma pendiente",p.sitio||p.coleccion||""].filter(Boolean).join(" · ");
   }
   function designLabel(d){
+    if(isEmptyDrawingDraft(d)) return "Borrador vacío";
     return [d.esquema||"Esquema pendiente",d.clase_simetria||""].filter(Boolean).join(" · ");
   }
 
@@ -843,9 +844,20 @@
 
   function renderDesignList(){
     const q=$("designSearch").value?.toLowerCase()||"";const box=$("designList");box.innerHTML="";
-    data.designs.filter(isVisibleDrawing).sort((a,b)=>numericId(a.id,"MR-D")-numericId(b.id,"MR-D")).filter(d=>[d.id,d.ref_original,d.piece_id,d.esquema,d.clase_simetria].join(" ").toLowerCase().includes(q)).forEach(d=>{
-      const row=document.createElement("div");row.className="record-row"+(d.id===selectedDesignId?" active":"");
-      row.innerHTML=`<strong>${esc(d.id)}</strong><small>${esc(designLabel(d)||d.ref_original||"pendiente")}</small>`;row.onclick=()=>{selectedDesignId=d.id;renderDesignList();loadDesignForm(d.id);};box.appendChild(row);
+    const rows=[...data.designs].sort((a,b)=>numericId(a.id,"MR-D")-numericId(b.id,"MR-D"))
+      .filter(d=>[d.id,d.ref_original,d.piece_id,d.esquema,d.clase_simetria,isEmptyDrawingDraft(d)?"borrador vacío":""].join(" ").toLowerCase().includes(q));
+    rows.forEach(d=>{
+      const draft=isEmptyDrawingDraft(d);
+      const row=document.createElement("div");
+      row.className="record-row"+(d.id===selectedDesignId?" active":"")+(draft?" draft-row":"");
+      row.dataset.designId=d.id;
+      row.innerHTML=`<strong>${esc(d.id)}</strong><small>${draft?'<span class="draft-badge">Borrador vacío</span>':esc(designLabel(d)||d.ref_original||"pendiente")}</small>`;
+      row.onclick=()=>{selectedDesignId=d.id;renderDesignList();loadDesignForm(d.id);};
+      box.appendChild(row);
+    });
+    requestAnimationFrame(()=>{
+      const active=box.querySelector('[data-design-id="'+CSS.escape(selectedDesignId)+'"]');
+      active?.scrollIntoView({block:"nearest"});
     });
   }
   $("designSearch").addEventListener("input",renderDesignList);
