@@ -190,3 +190,17 @@ dialog{
 
 .reference-order{display:block;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--lime);font-weight:900;margin-bottom:4px}
 .card .reference-order:empty{display:none}
+
+/* Editor estable en pantallas de escritorio: lista y formulario tienen scroll propio */
+.editor-layout{align-items:start}
+.record-list-panel,.editor-card{max-height:calc(100vh - 92px)}
+.record-list-panel{position:sticky;top:76px}
+.record-list{max-height:calc(100vh - 170px);overscroll-behavior:contain;scrollbar-gutter:stable}
+.editor-card{overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable}
+.editor-card .form-title{position:sticky;top:-22px;z-index:8;background:var(--panel);padding-top:22px}
+@media(max-width:900px){
+  .record-list-panel,.editor-card{max-height:none;position:static}
+  .record-list{max-height:260px}
+  .editor-card{overflow:visible}
+  .editor-card .form-title{position:static;padding-top:0}
+}
