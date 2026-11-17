@@ -1496,14 +1496,39 @@
   $("exportPieces").onclick=()=>download("muestra_referencia_piezas.csv",toCsv(data.pieces,[
     {key:"reference_order",label:"ORDEN_REFERENCIA"},{key:"id",label:"ID_PIEZA"},{key:"uid",label:"UID_INTERNO"},{key:"sample_group",label:"GRUPO_MUESTRA"},{key:"display_order",label:"ORDEN_MUESTRA"},{key:"caja",label:"CAJA"},{key:"sigla",label:"SIGLA"},{key:"sitio",label:"SITIO"},{key:"coleccion",label:"COLECCION"},{key:"publicacion",label:"PUBLICACION"},{key:"pagina",label:"PAGINA_LAMINA"},{key:"forma",label:"FORMA"},{key:"forma_otro",label:"FORMA_OTRO"},{key:"integridad",label:"INTEGRIDAD"},{key:"atmosfera_coccion",label:"ATMOSFERA_COCCION"},{key:"pintura",label:"PINTURA"},{get:r=>r.pintura==="Sí"?"PINTADA":(r.atmosfera_coccion==="Reductora"&&r.pintura==="No"?"GRIS_REDUCTORA_NO_PINTADA":"OTRO_INDETERMINADO"),label:"GRUPO_ANALITICO"},{key:"fotogrametria_url",label:"FOTOGRAMETRIA_URL"},{key:"photo_file_name",label:"FOTO_ARCHIVO"},{key:"observaciones",label:"OBSERVACIONES"}
   ]));
-  if($("exportFields")) $("exportFields").onclick=()=>download("muestra_referencia_campos.csv",toCsv(data.fields,[
-    {key:"id",label:"ID_CAMPO"},{key:"piece_id",label:"ID_PIEZA"},{key:"catalog_code",label:"CODIGO_SECTOR"},{key:"nombre",label:"SECTOR_CAMPO"},{key:"nombre_otro",label:"CAMPO_OTRO"},{key:"design_id",label:"ID_DISENO"},{get:r=>(r.tecnicas||[]).join("|"),label:"TECNICAS"},{key:"tecnica_otro",label:"TECNICA_OTRO"},{get:r=>(r.esquemas||[]).join("|"),label:"ESQUEMAS_ORIGINAL"},{get:r=>(r.esquemas_codigos||[]).join("|"),label:"ESQUEMAS_CODIGOS"},{get:r=>JSON.stringify(r.esquemas_normalizados||[]),label:"ESQUEMAS_NORMALIZADOS"},{key:"clase_simetria",label:"CLASE_SIMETRIA"},{key:"colores",label:"COLORES"},{key:"observaciones",label:"OBSERVACIONES"}
-  ]));
+  if($("exportFields")) $("exportFields").onclick=()=>{
+    const schemeNums=schemeNumbers();
+    const rows=data.fields.map(f=>{
+      const p=data.pieces.find(x=>x.id===f.piece_id)||{};
+      return {
+        ...f,
+        forma_analitica:analyticalForm(f,p),
+        tipo_fuente:analyticalSource(f),
+        estados_esquema:schemeReviewStates(f).join("|")||"sin_esquema",
+        requiere_revision_esquema:schemeNeedsReview(f),
+        ...schemeBinaryValues(f,schemeNums)
+      };
+    });
+    const cols=[
+      {key:"id",label:"ID_CAMPO"},{key:"piece_id",label:"ID_PIEZA"},{key:"source_type",label:"SOURCE_TYPE"},{key:"tipo_fuente",label:"TIPO_FUENTE"},
+      {key:"forma_analitica",label:"FORMA_ANALITICA"},{key:"form_inferred",label:"FORMA_INFERIDA"},
+      {key:"catalog_code",label:"CODIGO_SECTOR"},{key:"nombre",label:"SECTOR_CAMPO"},{key:"nombre_otro",label:"CAMPO_OTRO"},{key:"design_id",label:"ID_DISENO"},
+      {get:r=>(r.tecnicas||[]).join("|"),label:"TECNICAS"},{key:"tecnica_otro",label:"TECNICA_OTRO"},
+      {get:r=>(r.esquemas||[]).join("|"),label:"ESQUEMAS_ORIGINAL"},
+      {get:r=>(r.esquemas_codigos||[]).join("|"),label:"ESQUEMAS_CODIGOS"},
+      {get:r=>JSON.stringify(r.esquemas_normalizados||[]),label:"ESQUEMAS_NORMALIZADOS"},
+      {key:"estados_esquema",label:"ESTADOS_ESQUEMA"},{key:"requiere_revision_esquema",label:"REQUIERE_REVISION_ESQUEMA"},
+      ...schemeNums.map(n=>({key:"E"+n,label:"E"+n})),
+      {key:"clase_simetria",label:"CLASE_SIMETRIA"},{key:"colores",label:"COLORES"},{key:"observaciones",label:"OBSERVACIONES"}
+    ];
+    download("muestra_referencia_campos.csv",toCsv(rows,cols));
+  };
   $("exportDesigns").onclick=()=>download("muestra_referencia_dibujos.csv",toCsv(data.designs,[
     {key:"reference_order",label:"ORDEN_REFERENCIA"},{key:"id",label:"ID_DISENO"},{key:"ref_original",label:"REF_ORIGINAL"},{key:"piece_id",label:"ID_PIEZA"},{key:"field_id",label:"ID_CAMPO"},{key:"campo_decorativo",label:"CAMPO_DECORATIVO"},{key:"campo_otro",label:"CAMPO_OTRO"},{get:r=>(r.tecnicas||[]).join("|"),label:"TECNICAS"},{key:"tecnica_otro",label:"TECNICA_OTRO"},{key:"esquema",label:"ESQUEMA"},{key:"clase_simetria",label:"CLASE_SIMETRIA"},{key:"colores",label:"COLORES"},{key:"design_file_name",label:"DISENO_ARCHIVO"},{key:"observaciones",label:"OBSERVACIONES"}
   ]));
   $("exportSpss").onclick=()=>{
     const techs=data.options.tecnicas.filter(x=>x!=="Otro");
+    const schemeNums=schemeNumbers();
     const rows=data.fields.map(f=>{
       const p=data.pieces.find(x=>x.id===f.piece_id)||{};
       const d=data.designs.find(x=>x.field_id===f.id)||{};
@@ -1511,25 +1536,71 @@
         ...f,
         design_id:d.id||f.design_id||"",
         ref_original:d.ref_original||"",
+        forma_analitica:analyticalForm(f,p),
+        tipo_fuente:analyticalSource(f),
+        estados_esquema:schemeReviewStates(f).join("|")||"sin_esquema",
+        requiere_revision_esquema:schemeNeedsReview(f),
         esquemas_txt:(f.esquemas||[]).join("|"),
         esquemas_codigos_txt:(f.esquemas_codigos||[]).join("|"),
         esquemas_variantes_txt:(f.esquemas_normalizados||[]).map(x=>[x.codigo||"",x.variante||"",x.estado||""].filter(Boolean).join(":")).join("|"),
         grupo_analitico:p.pintura==="Sí"?"PINTADA":(p.atmosfera_coccion==="Reductora"&&p.pintura==="No"?"GRIS_REDUCTORA_NO_PINTADA":"OTRO_INDETERMINADO"),
         ...Object.fromEntries(Object.entries(p).map(([k,v])=>["p_"+k,v])),
         ...Object.fromEntries(techs.map(t=>["tec_"+slug(t),(f.tecnicas||[]).includes(t)?1:0])),
-        tec_otro:(f.tecnicas||[]).includes("Otro")?1:0
+        tec_otro:(f.tecnicas||[]).includes("Otro")?1:0,
+        ...schemeBinaryValues(f,schemeNums)
       };
     });
     const cols=[
-      {key:"id",label:"ID_CAMPO"},{key:"piece_id",label:"ID_PIEZA"},{key:"design_id",label:"ID_DISENO"},{key:"ref_original",label:"REF_ORIGINAL"},{key:"catalog_code",label:"CODIGO_SECTOR"},
-      {key:"nombre",label:"SECTOR_CAMPO"},{key:"nombre_otro",label:"CAMPO_OTRO"},
-      {key:"p_sitio",label:"SITIO"},{key:"p_coleccion",label:"COLECCION"},{key:"p_sigla",label:"SIGLA"},{key:"p_forma",label:"FORMA"},{key:"p_integridad",label:"INTEGRIDAD"},{key:"p_atmosfera_coccion",label:"ATMOSFERA_COCCION"},{key:"p_pintura",label:"PINTURA"},{key:"grupo_analitico",label:"GRUPO_ANALITICO"},
+      {key:"id",label:"ID_CAMPO"},{key:"piece_id",label:"ID_PIEZA"},{key:"design_id",label:"ID_DISENO"},{key:"ref_original",label:"REF_ORIGINAL"},
+      {key:"tipo_fuente",label:"TIPO_FUENTE"},{key:"forma_analitica",label:"FORMA_ANALITICA"},
+      {key:"catalog_code",label:"CODIGO_SECTOR"},{key:"nombre",label:"SECTOR_CAMPO"},{key:"nombre_otro",label:"CAMPO_OTRO"},
+      {key:"p_sitio",label:"SITIO"},{key:"p_coleccion",label:"COLECCION"},{key:"p_sigla",label:"SIGLA"},{key:"p_forma",label:"FORMA_PIEZA"},{key:"form_inferred",label:"FORMA_INFERIDA"},{key:"p_integridad",label:"INTEGRIDAD"},
+      {key:"p_atmosfera_coccion",label:"ATMOSFERA_COCCION"},{key:"p_pintura",label:"PINTURA"},{key:"grupo_analitico",label:"GRUPO_ANALITICO"},
       ...techs.map(t=>({key:"tec_"+slug(t),label:"TEC_"+slug(t).toUpperCase()})),{key:"tec_otro",label:"TEC_OTRO"},
-      {key:"esquemas_txt",label:"ESQUEMAS_ORIGINAL"},{key:"esquemas_codigos_txt",label:"ESQUEMAS_CODIGOS"},{key:"esquemas_variantes_txt",label:"ESQUEMAS_VARIANTES_ESTADO"},{key:"clase_simetria",label:"CLASE_SIMETRIA"},{key:"colores",label:"COLORES"}
+      {key:"esquemas_txt",label:"ESQUEMAS_ORIGINAL"},{key:"esquemas_codigos_txt",label:"ESQUEMAS_CODIGOS"},{key:"esquemas_variantes_txt",label:"ESQUEMAS_VARIANTES_ESTADO"},
+      {key:"estados_esquema",label:"ESTADOS_ESQUEMA"},{key:"requiere_revision_esquema",label:"REQUIERE_REVISION_ESQUEMA"},
+      ...schemeNums.map(n=>({key:"E"+n,label:"E"+n})),
+      {key:"clase_simetria",label:"CLASE_SIMETRIA"},{key:"colores",label:"COLORES"}
     ];
     download("muestra_referencia_matriz_spss.csv",toCsv(rows,cols));
   };
   function slug(s){return s.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_|_$/g,"");}
+  function analyticalForm(field,piece){
+    return (field?.source_type==="independent" || (!field?.piece_id&&!field?.piece_uid))
+      ? (field?.form_inferred||"INDETERMINADA")
+      : (piece?.forma||"INDETERMINADA");
+  }
+  function analyticalSource(field){
+    return (field?.source_type==="independent" || (!field?.piece_id&&!field?.piece_uid))
+      ? "REFERENCIA_INDEPENDIENTE"
+      : "PIEZA_OBSERVADA";
+  }
+  function schemeReviewStates(field){
+    return [...new Set((field?.esquemas_normalizados||[]).map(x=>x?.estado).filter(Boolean))];
+  }
+  function schemeNeedsReview(field){
+    return schemeReviewStates(field).some(x=>x!=="seguro")?1:0;
+  }
+  function schemeNumbers(){
+    const nums=[];
+    for(const f of data.fields){
+      for(const code of (f.esquemas_codigos||[])){
+        const m=String(code).match(/^E(\d+)$/i); if(m)nums.push(+m[1]);
+      }
+      for(const item of (f.esquemas_normalizados||[])){
+        for(const code of (item?.codigos_posibles||[])){
+          const m=String(code).match(/^E(\d+)$/i); if(m)nums.push(+m[1]);
+        }
+      }
+    }
+    const max=Math.max(36,...nums,0);
+    return Array.from({length:max},(_,i)=>i+1);
+  }
+  function schemeBinaryValues(field,nums){
+    const present=new Set((field?.esquemas_codigos||[]).map(x=>String(x).toUpperCase()));
+    return Object.fromEntries(nums.map(n=>["E"+n,present.has("E"+n)?1:0]));
+  }
+
   $("exportDictionary").onclick=()=>{
     const rows=[
       ["ID_PIEZA","Cadena","Identificador visible y renumerable según el orden de la muestra","MR-Pxxxx"],
@@ -1541,11 +1612,15 @@
       ["ATMOSFERA_COCCION","Nominal","Atmósfera de cocción de la pieza","Reductora; Oxidante; Mixta; Indeterminada"],
       ["PINTURA","Nominal","Presencia de pintura en la pieza","Sí; No; Indeterminada"],
       ["GRUPO_ANALITICO","Nominal derivada","Grupo para comparar esquemas según tratamiento tecnológico/decorativo","GRIS_REDUCTORA_NO_PINTADA; PINTADA; OTRO_INDETERMINADO"],
+      ["TIPO_FUENTE","Nominal derivada","Origen analítico del campo","PIEZA_OBSERVADA; REFERENCIA_INDEPENDIENTE"],
+      ["FORMA_ANALITICA","Nominal derivada","Forma usada en análisis: forma observada de la pieza o forma inferida en referencias independientes","Lista de formas; INDETERMINADA"],
       ["CAMPO_DECORATIVO","Nominal","Sector de la pieza donde se registra el diseño","Lista condicionada por forma + Otro"],
       ["TECNICA_*","Dicotómica","Presencia/ausencia de cada técnica en matriz SPSS","0=ausente; 1=presente"],
       ["ESQUEMAS_ORIGINAL","Texto","Registro original de esquema(s), preservado sin cambios","Texto libre"],
       ["ESQUEMAS_CODIGOS","Nominal múltiple","Códigos base seguros derivados para análisis","E1|E2|..."],
       ["ESQUEMAS_NORMALIZADOS","Estructurada","Código base, variante, estado y texto original por esquema","JSON; estado=seguro/ambiguo/provisional/revisar"],
+      ["REQUIERE_REVISION_ESQUEMA","Dicotómica derivada","Indica si algún esquema del campo es ambiguo, provisional o requiere revisión","0=no; 1=sí"],
+      ["E1...E36","Dicotómicas derivadas","Presencia/ausencia de cada esquema seguro por campo; se amplía automáticamente si aparecen códigos mayores","0=ausente; 1=presente"],
       ["CLASE_SIMETRIA","Nominal","Clase de simetría registrada","Lista controlada"],
       ["COLORES","Texto","Descripción de colores empleados","Texto libre"]
     ];
