@@ -212,3 +212,17 @@ dialog{
   .editor-card{overflow:visible}
   .editor-card .form-title{position:static;padding-top:0}
 }
+
+/* Editor: borradores visibles y sin desbordamiento horizontal */
+.editor-layout,.editor-card,.form-grid,.form-grid>*{min-width:0}
+.editor-card{overflow-x:hidden}
+.form-grid input,.form-grid select,.form-grid textarea{min-width:0;max-width:100%}
+.media-field{grid-template-columns:minmax(0,1fr) minmax(180px,300px) auto;max-width:100%;overflow:hidden}
+.media-field>*{min-width:0}
+.media-field input[type=file]{width:100%;max-width:100%;min-width:0}
+.record-row.draft-row{border:1px dashed rgba(194,215,137,.2)}
+.draft-badge{display:inline-block;color:var(--sand);font-style:italic}
+@media(max-width:1100px){
+  .media-field{grid-template-columns:1fr}
+  .media-field input[type=file]{max-width:none}
+}
