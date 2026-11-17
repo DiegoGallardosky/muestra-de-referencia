@@ -198,13 +198,17 @@
 
   async function loadCentralData(){
     try{
-      const [pieces,fields,drawings,media,meta]=await Promise.all([
-        centralFetch("pieces?select=*&order=display_order.asc"),
-        centralFetch("fields?select=*"),
-        centralFetch("drawings?select=*"),
-        centralFetch("media_assets?select=source_local_key,storage_path"),
-        centralFetch("app_meta?key=eq.canonical_migration&select=value")
+      if(!supabaseClient) throw new Error("Cliente Supabase no disponible");
+      const [pr,fr,dr,mr,ar]=await Promise.all([
+        supabaseClient.from("pieces").select("*").order("display_order",{ascending:true}),
+        supabaseClient.from("fields").select("*"),
+        supabaseClient.from("drawings").select("*"),
+        supabaseClient.from("media_assets").select("source_local_key,storage_path"),
+        supabaseClient.from("app_meta").select("value").eq("key","canonical_migration")
       ]);
+      const firstError=pr.error||fr.error||dr.error||mr.error||ar.error;
+      if(firstError) throw firstError;
+      const pieces=pr.data||[],fields=fr.data||[],drawings=dr.data||[],media=mr.data||[],meta=ar.data||[];
       const m=meta?.[0]?.value;
       if(!m?.verified || !pieces.length) return false;
 
@@ -262,6 +266,8 @@
       return true;
     }catch(err){
       console.error("No se pudo cargar la base central",err);
+      const el=document.getElementById("centralStatusCounts");
+      if(el)el.textContent="Error al cargar la base central";
       return false;
     }
   }
