@@ -133,6 +133,8 @@
             <label>Forma<select id="p_forma"></select></label>
             <label id="p_forma_otro_wrap" class="hidden">Otra forma<input id="p_forma_otro"></label>
             <label>Integridad<select id="p_integridad"></select></label>
+            <label>Atmósfera de cocción<select id="p_atmosfera"><option value="">Sin especificar</option><option>Reductora</option><option>Oxidante</option><option>Mixta</option><option>Indeterminada</option></select><small>Variable tecnológica de la pieza.</small></label>
+            <label>Pintura<select id="p_pintura"><option value="">Sin especificar</option><option>Sí</option><option>No</option><option>Indeterminada</option></select><small>Presencia de pintura en la pieza.</small></label>
             <label class="span-2">Fotogrametría — URL<input id="p_fotogrametria" type="url" placeholder="https://…"></label>
             <label class="span-2">Observaciones<textarea id="p_observaciones" rows="4"></textarea></label>
             <div class="span-2 media-field">
@@ -215,7 +217,7 @@
         <article><h3>Estado de persistencia</h3><p>Supabase es la fuente principal. Al editar con una cuenta autorizada, los cambios se guardan en la base central y quedan disponibles desde cualquier dispositivo.</p></article>
       </div>
     </section>
-  </main><div id="appVersion" style="position:fixed;right:8px;bottom:6px;font-size:10px;opacity:.45;z-index:20">v2026.11.17-paste-first</div>
+  </main><div id="appVersion" style="position:fixed;right:8px;bottom:6px;font-size:10px;opacity:.45;z-index:20">v2026.11.17-tech-paint</div>
 
   <dialog id="authDialog" class="auth-dialog">
     <button id="closeAuthDialog" class="dialog-close" type="button">×</button>
@@ -248,6 +250,6 @@
   <script src="data.js?v=20261114-1145"></script>
   <script src="migrations.js?v=20261114-1145"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.95.0/dist/umd/supabase.min.js"></script>
-  <script src="app.js?v=20261117-1915"></script>
+  <script src="app.js?v=20261117-2015"></script>
 </body>
 </html>
