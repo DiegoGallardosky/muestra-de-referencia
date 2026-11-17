@@ -123,21 +123,11 @@
     try{
       const pieceRows=data.pieces.map(centralPieceRowLive);
       const fieldRows=data.fields.map(centralFieldRowLive);
-      const drawingRows=data.designs.map(centralDrawingRowLive);
+      const drawingRows=data.designs.filter(d=>!d._draft).map(centralDrawingRowLive);
       let r=await supabaseClient.from("pieces").upsert(pieceRows,{onConflict:"uid"});if(r.error)throw r.error;
       r=await supabaseClient.from("fields").upsert(fieldRows,{onConflict:"uid"});if(r.error)throw r.error;
       r=await supabaseClient.from("drawings").upsert(drawingRows,{onConflict:"uid"});if(r.error)throw r.error;
 
-      const [cp,cf,cd]=await Promise.all([
-        supabaseClient.from("pieces").select("uid"),
-        supabaseClient.from("fields").select("uid"),
-        supabaseClient.from("drawings").select("uid")
-      ]);
-      if(cp.error||cf.error||cd.error)throw cp.error||cf.error||cd.error;
-      const keepP=new Set(pieceRows.map(x=>x.uid)),keepF=new Set(fieldRows.map(x=>x.uid)),keepD=new Set(drawingRows.map(x=>x.uid));
-      for(const row of cp.data||[])if(!keepP.has(row.uid))await supabaseClient.from("pieces").delete().eq("uid",row.uid);
-      for(const row of cf.data||[])if(!keepF.has(row.uid))await supabaseClient.from("fields").delete().eq("uid",row.uid);
-      for(const row of cd.data||[])if(!keepD.has(row.uid))await supabaseClient.from("drawings").delete().eq("uid",row.uid);
       if($("authButton"))$("authButton").title="Última sincronización: "+new Date().toLocaleTimeString();
     }catch(err){
       console.error("Error de sincronización central",err);
@@ -148,6 +138,17 @@
     if(!centralMode||!editorMode)return;
     clearTimeout(centralSyncTimer);
     centralSyncTimer=setTimeout(syncAllCentral,500);
+  }
+
+  async function deleteCentralDrawingRow(d){
+    if(!centralMode||!editorMode||!supabaseClient||!d?.uid)return;
+    const r=await supabaseClient.from("drawings").delete().eq("uid",d.uid);
+    if(r.error)throw r.error;
+  }
+  async function deleteCentralFieldRow(f){
+    if(!centralMode||!editorMode||!supabaseClient||!f?.uid)return;
+    const r=await supabaseClient.from("fields").delete().eq("uid",f.uid);
+    if(r.error)throw r.error;
   }
 
   async function uploadCentralLiveMedia(key,file){
@@ -607,6 +608,15 @@
     return [d.esquema||"Esquema pendiente",d.clase_simetria||""].filter(Boolean).join(" · ");
   }
 
+  function isEmptyDrawingDraft(d){
+    if(!d)return false;
+    return !d.piece_id && !d.piece_uid && !d.field_id && !d.field_uid &&
+      !d.reference_order && !d.ref_original && !d.drawing_path && !d.design_file_name &&
+      !d.esquema && !d.clase_simetria && !d.colores && !d.observaciones &&
+      !d.campo_decorativo && !d.campo_otro && !d.tecnica_otro &&
+      !(d.tecnicas||[]).length;
+  }
+
   function isVisibleDrawing(d){
     if(!d)return false;
     const validField=!!(d.field_id && data.fields.some(f=>f.id===d.field_id));
@@ -702,8 +712,10 @@
     const field=data.fields.find(f=>f.id===d.field_id);
     if(field?.design_id===designId) field.design_id="";
     await deleteFile("design:"+designId);
+    await deleteCentralDrawingRow(d);
     data.designs=data.designs.filter(x=>x.id!==designId);
     if(field?.source_type==="independent" && !data.designs.some(x=>x.field_id===field.id)){
+      await deleteCentralFieldRow(field);
       data.fields=data.fields.filter(f=>f.id!==field.id);
     }
     if(selectedDesignId===designId) selectedDesignId=data.designs[0]?.id||"";
@@ -951,7 +963,7 @@
       const checked=existing.some(f=>f.catalog_code===c.codigo || (f.nombre===c.nombre && !f.nombre_otro));
       return '<label class="field-preset-chip"><input type="checkbox" data-field-preset="'+esc(c.codigo)+'" '+(checked?'checked':'')+'> <span><b>'+esc(c.codigo)+'</b>'+esc(c.nombre)+'</span></label>';
     }).join("")+'</div>';
-    box.querySelectorAll("[data-field-preset]").forEach(input=>input.addEventListener("change",()=>{
+    box.querySelectorAll("[data-field-preset]").forEach(input=>input.addEventListener("change",async()=>{
       const item=catalog.find(c=>c.codigo===input.dataset.fieldPreset);if(!item)return;
       const existingField=data.fields.find(f=>f.piece_id===pieceId && (f.catalog_code===item.codigo || (f.nombre===item.nombre && !f.nombre_otro)));
       if(input.checked){
@@ -968,7 +980,7 @@
             input.checked=true;toast("No se puede quitar: hay diseños vinculados");
             return;
           }
-          data.fields=data.fields.filter(f=>f.id!==existingField.id);saveData();toast(item.codigo+" quitado");
+          await deleteCentralFieldRow(existingField);data.fields=data.fields.filter(f=>f.id!==existingField.id);saveData();toast(item.codigo+" quitado");
         }
       }
       renderPieceFieldsEditor(pieceId);
@@ -1052,10 +1064,10 @@
       $("editDesignTab").click();
       loadDesignForm(d.id);
     }));
-    box.querySelectorAll("[data-field-delete]").forEach(btn=>btn.addEventListener("click",()=>{
+    box.querySelectorAll("[data-field-delete]").forEach(btn=>btn.addEventListener("click",async()=>{
       const id=btn.dataset.fieldDelete;
       if(data.designs.some(d=>d.field_id===id)){toast("No se puede eliminar: hay diseños vinculados");return;}
-      data.fields=data.fields.filter(f=>f.id!==id);saveData();renderPieceFieldsEditor(pieceId);toast("Campo decorativo eliminado");
+      const field=data.fields.find(f=>f.id===id);if(field)await deleteCentralFieldRow(field);data.fields=data.fields.filter(f=>f.id!==id);saveData();renderPieceFieldsEditor(pieceId);toast("Campo decorativo eliminado");
     }));
   }
 
@@ -1199,7 +1211,11 @@
   }
 
   function loadFieldAnalysisIntoControls(field, design=null){
-    $("d_simetria").value=field?.clase_simetria||design?.clase_simetria||"";
+    const symmetry=String(field?.clase_simetria||design?.clase_simetria||"").trim();
+    if(symmetry && ![...$("d_simetria").options].some(o=>o.value===symmetry)){
+      const o=document.createElement("option");o.value=symmetry;o.textContent=symmetry;$("d_simetria").appendChild(o);
+    }
+    $("d_simetria").value=symmetry;
     $("d_esquema").value=(field?.esquemas&&field.esquemas.length)?field.esquemas.join(" | "):(design?.esquema||"");
     $("d_colores").value=field?.colores||design?.colores||"";
     $("d_tecnica_otro").value=field?.tecnica_otro||design?.tecnica_otro||"";
@@ -1234,6 +1250,7 @@
     previewFile("design:"+id,"designImagePreview");
     renderDesignList();
     bindPasteZone($("designImagePreview"),id+"-diseno",async file=>{
+      if(d._draft){toast("Guardá primero el nuevo dibujo; después podés pegar la imagen con Ctrl+V");return;}
       await putFile("design:"+id,file);
       d.design_file_name=file.name;d.updated_at=nowIso();saveData();
       await previewFile("design:"+id,"designImagePreview");
@@ -1307,6 +1324,7 @@
   $("designForm").onsubmit=async e=>{
     e.preventDefault();
     const d=data.designs.find(x=>x.id===selectedDesignId);if(!d)return;
+    const wasDraft=!!d._draft;
     const pieceId=$("d_piece").value;
 
     if(!pieceId){
@@ -1370,14 +1388,25 @@
         }
       }
     }
+    d._draft=false;
+    saveData();
+    if(centralMode&&editorMode&&(wasDraft||$("d_image").files[0])) await syncAllCentral();
     const file=$("d_image").files[0];
-    if(file){await putFile("design:"+d.id,file);d.design_file_name=file.name;$("d_image").value="";}
-    saveData();renderDesignList();renderCatalog();await previewFile("design:"+d.id,"designImagePreview");
+    if(file){await putFile("design:"+d.id,file);d.design_file_name=file.name;$("d_image").value="";saveData();}
+    renderDesignList();renderCatalog();await previewFile("design:"+d.id,"designImagePreview");
     toast(d.piece_id?"Diseño guardado":"Referencia independiente guardada");
   };
   $("removeDesignImage").onclick=async()=>{await deleteFile("design:"+selectedDesignId);const d=data.designs.find(x=>x.id===selectedDesignId);if(d)d.design_file_name="";saveData();previewFile("design:"+selectedDesignId,"designImagePreview");toast("Archivo eliminado");};
   $("newDesignBtn").onclick=()=>{
-    const id=nextId("MR-D",data.designs);data.designs.push({id,uid:window.MR_MIGRATIONS?.newUid?window.MR_MIGRATIONS.newUid("design",data):"",ref_original:"",piece_id:"",piece_uid:"",field_id:"",field_uid:"",campo_otro:"",form_inferred:"",reference_order:null,tecnicas:[],tecnica_otro:"",esquema:"",clase_simetria:"",colores:"",observaciones:"",design_file_name:"",updated_at:""});selectedDesignId=id;saveData();renderDesignList();loadDesignForm(id);toast("Nuevo diseño creado: "+id);
+    const reusable=[...data.designs].filter(isEmptyDrawingDraft).sort((a,b)=>numericId(a.id,"MR-D")-numericId(b.id,"MR-D"))[0];
+    if(reusable){
+      selectedDesignId=reusable.id;renderDesignList();loadDesignForm(reusable.id);
+      toast("Borrador disponible: "+reusable.id+" · completalo y guardá");
+      return;
+    }
+    const id=nextId("MR-D",data.designs);
+    data.designs.push({id,uid:window.MR_MIGRATIONS?.newUid?window.MR_MIGRATIONS.newUid("design",data):"",_draft:true,ref_original:"",piece_id:"",piece_uid:"",field_id:"",field_uid:"",campo_otro:"",form_inferred:"",reference_order:null,tecnicas:[],tecnica_otro:"",esquema:"",clase_simetria:"",colores:"",observaciones:"",design_file_name:"",updated_at:""});
+    selectedDesignId=id;renderDesignList();loadDesignForm(id);toast("Nuevo dibujo en borrador: "+id+" · no se guarda en la base hasta confirmar");
   };
 
   // CSV/SPSS exports
@@ -1938,8 +1967,10 @@
     data.fields.forEach(f=>{
       if(fieldIds.has(f.id)) issues.push("ID de campo duplicado: "+f.id);
       fieldIds.add(f.id);
+      const independent=(f.source_type==="independent" || (!f.piece_id&&!f.piece_uid));
       const p=data.pieces.find(x=>x.id===f.piece_id);
-      if(!p) issues.push(f.id+" apunta a una pieza inexistente: "+(f.piece_id||"(vacío)"));
+      if(!independent && !p) issues.push(f.id+" apunta a una pieza inexistente: "+(f.piece_id||"(vacío)"));
+      if(independent && (f.piece_id||f.piece_uid)) issues.push(f.id+" es independiente pero conserva vínculo de pieza");
       if(!f.catalog_code && f.nombre!=="Otro") warnings.push(f.id+" no tiene código de sector CD");
       if(f.catalog_code && data.fields.some(x=>x.id!==f.id && x.piece_id===f.piece_id && x.catalog_code===f.catalog_code)) issues.push(f.piece_id+" tiene el sector "+f.catalog_code+" repetido");
       if(p && f.catalog_code){
@@ -1971,26 +2002,22 @@
   }
 
   if($("runAudit")) $("runAudit").onclick=async()=>{
-    const removed=await cleanupEmptyOrphanDrawings();
-    const renumbered=await renumberDrawingsOnly();
     const r=auditDatabase();
+    const drafts=data.designs.filter(isEmptyDrawingDraft).length;
     const box=$("auditSummary");
-    box.innerHTML=(removed?'<em>Se eliminaron '+removed+' dibujo(s) vacío(s) sin información real.</em>':'')+
-      (renumbered?'<em>Se renumeraron '+renumbered+' dibujo(s) para dejar la secuencia MR-D continua.</em>':'')+
-      '<strong>'+r.issues.length+' problema(s) crítico(s)</strong><span>'+r.warnings.length+' advertencia(s)</span>'+
-      (r.issues.length?'<details><summary>Ver problemas</summary><ul>'+r.issues.slice(0,50).map(x=>'<li>'+esc(x)+'</li>').join("")+'</ul></details>':'')+
-      (r.warnings.length?'<details><summary>Ver advertencias</summary><ul>'+r.warnings.slice(0,50).map(x=>'<li>'+esc(x)+'</li>').join("")+'</ul></details>':'')+
+    box.innerHTML='<em>Auditoría de solo lectura: no elimina ni renumera registros.</em>'+
+      '<strong>'+r.issues.length+' problema(s) crítico(s)</strong><span>'+r.warnings.length+' advertencia(s) · '+drafts+' borrador(es) vacío(s)</span>'+
+      (r.issues.length?'<details><summary>Ver problemas</summary><ul>'+r.issues.slice(0,80).map(x=>'<li>'+esc(x)+'</li>').join("")+'</ul></details>':'')+
+      (r.warnings.length?'<details><summary>Ver advertencias</summary><ul>'+r.warnings.slice(0,80).map(x=>'<li>'+esc(x)+'</li>').join("")+'</ul></details>':'')+
       (!r.issues.length?'<em>Las relaciones estructurales principales son coherentes.</em>':'');
   };
 
-  if($("repairIds")) $("repairIds").onclick=async()=>{
+  if($("repairIds")) $("repairIds").onclick=()=>{
     const seq=idSequenceProblems();
+    const box=$("auditSummary");
     if(!seq.length){toast("Los IDs ya son correlativos");return;}
-    const ok=confirm("Esto hará un reindexado único y correlativo de MR-P, MR-C y MR-D. Se conservará cada ID anterior como legacy_id y también se migrarán las imágenes. ¿Continuar?");
-    if(!ok)return;
-    const result=await repairIdSequences();
-    toast("IDs normalizados: "+result.pieces+" piezas, "+result.fields+" campos, "+result.drawings+" dibujos");
-    if($("auditSummary")) $("auditSummary").innerHTML='<em>Reindexado completado. Ejecutá “Auditar base” para verificar.</em>';
+    box.innerHTML='<em>Vista previa solamente. No se modificó ningún ID.</em><strong>'+seq.length+' diferencia(s) de secuencia</strong><details open><summary>Ver diferencias</summary><ul>'+seq.slice(0,120).map(x=>'<li>'+esc(x)+'</li>').join("")+'</ul></details>';
+    toast("Se preparó la vista previa; no se renumeró nada");
   };
 
   // Procedural jungle ambience, user initiated
