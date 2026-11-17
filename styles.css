@@ -181,3 +181,9 @@ dialog{
 #authStatus,#authEditorState{display:block;color:var(--muted);margin-top:12px;line-height:1.45}
 #editorClaimBox{border-top:1px solid var(--line);padding-top:14px;margin-top:14px}
 #authButton{min-width:120px}
+
+.independent-reference{border:1px solid rgba(194,215,137,.22);border-radius:12px;padding:14px;background:rgba(194,215,137,.035)}
+.independent-reference .analysis-note{margin-bottom:14px}
+.independent-reference-grid{margin-top:0}
+.card .chip:first-child{max-width:100%}
+@media(max-width:900px){#showPiecesBtn{white-space:nowrap}}
