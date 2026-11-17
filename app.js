@@ -2024,6 +2024,7 @@
       setEditingEnabled(false);
       await refreshAuthUI();
     }
+    refreshStats();
     renderPieceList();renderDesignList();loadPieceForm(selectedPieceId);renderCatalog();
     if(!loaded)applyPendingCommands();
   }
