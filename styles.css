@@ -187,3 +187,6 @@ dialog{
 .independent-reference-grid{margin-top:0}
 .card .chip:first-child{max-width:100%}
 @media(max-width:900px){#showPiecesBtn{white-space:nowrap}}
+
+.reference-order{display:block;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--lime);font-weight:900;margin-bottom:4px}
+.card .reference-order:empty{display:none}
