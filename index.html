@@ -209,7 +209,7 @@
         <article><h3>Piezas</h3><p>Una fila por pieza. Útil para análisis morfológicos, contextuales y de procedencia.</p><button id="exportPieces" class="primary">Descargar piezas.csv</button></article>
         <article><h3>Campos decorativos</h3><p>Una fila por campo decorativo. Es la tabla central de la muestra de referencia.</p><button id="exportFields" class="primary">Descargar campos.csv</button></article>
         <article><h3>Dibujos</h3><p>Una fila por dibujo MR-Dxxxx, vinculado a un único campo decorativo.</p><button id="exportDesigns" class="primary">Descargar dibujos.csv</button></article>
-        <article><h3>Matriz SPSS</h3><p>Una fila por campo decorativo, la unidad de análisis, con variables de pieza y técnicas convertidas a 0/1.</p><button id="exportSpss" class="primary">Descargar matriz_spss.csv</button></article>
+        <article><h3>Matriz SPSS</h3><p>Una fila por campo decorativo, con forma analítica, tipo de fuente, técnicas y esquemas E1–E… convertidos a 0/1.</p><button id="exportSpss" class="primary">Descargar matriz_spss.csv</button></article>
         <article><h3>Diccionario</h3><p>Descripción de variables y codificación básica para documentar los análisis.</p><button id="exportDictionary" class="secondary">Descargar diccionario.csv</button></article>
         <article><h3>Respaldo de datos</h3><p>Exporta o importa solamente los datos textuales.</p><button id="exportJson" class="secondary">Exportar JSON</button><label class="import-label">Importar JSON<input id="importJson" type="file" accept=".json,application/json"></label></article>
         <article><h3>Base central activa</h3><p>La muestra está alojada en Supabase y se abre desde cualquier dispositivo. La edición requiere iniciar sesión con una cuenta autorizada.</p><div class="audit-summary"><strong id="centralStatusCounts">Base sincronizada</strong><span>Fotografías y dibujos se guardan en el almacenamiento central.</span></div></article>
@@ -217,7 +217,7 @@
         <article><h3>Estado de persistencia</h3><p>Supabase es la fuente principal. Al editar con una cuenta autorizada, los cambios se guardan en la base central y quedan disponibles desde cualquier dispositivo.</p></article>
       </div>
     </section>
-  </main><div id="appVersion" style="position:fixed;right:8px;bottom:6px;font-size:10px;opacity:.45;z-index:20">v2026.11.17-scheme-layer</div>
+  </main><div id="appVersion" style="position:fixed;right:8px;bottom:6px;font-size:10px;opacity:.45;z-index:20">v2026.11.17-analysis-ready</div>
 
   <dialog id="authDialog" class="auth-dialog">
     <button id="closeAuthDialog" class="dialog-close" type="button">×</button>
@@ -250,6 +250,6 @@
   <script src="data.js?v=20261114-1145"></script>
   <script src="migrations.js?v=20261114-1145"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.95.0/dist/umd/supabase.min.js"></script>
-  <script src="app.js?v=20261117-2115"></script>
+  <script src="app.js?v=20261117-2200"></script>
 </body>
 </html>
