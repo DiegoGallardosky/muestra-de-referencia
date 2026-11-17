@@ -197,7 +197,15 @@ dialog{
 .record-list-panel{position:sticky;top:76px}
 .record-list{max-height:calc(100vh - 170px);overscroll-behavior:contain;scrollbar-gutter:stable}
 .editor-card{overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable}
-.editor-card .form-title{position:sticky;top:-22px;z-index:8;background:var(--panel);padding-top:22px}
+.editor-card .form-title{
+  position:sticky;
+  top:0;
+  z-index:12;
+  background:var(--panel);
+  margin:-22px -22px 20px;
+  padding:22px;
+  box-shadow:0 10px 22px rgba(0,0,0,.18);
+}
 @media(max-width:900px){
   .record-list-panel,.editor-card{max-height:none;position:static}
   .record-list{max-height:260px}
