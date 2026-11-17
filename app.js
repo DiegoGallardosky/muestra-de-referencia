@@ -90,7 +90,7 @@
       created_order:p.created_order??null,display_order:p.display_order??null,reference_order:p.reference_order??null,sample_group:p.sample_group||null,
       caja:p.caja||null,sigla:p.sigla||null,sitio:p.sitio||null,coleccion:p.coleccion||null,
       publicacion:p.publicacion||null,pagina:p.pagina||null,forma:p.forma||null,forma_otro:p.forma_otro||null,
-      integridad:p.integridad||null,fotogrametria_url:p.fotogrametria_url||null,observaciones:p.observaciones||null,
+      integridad:p.integridad||null,atmosfera_coccion:p.atmosfera_coccion||null,pintura:p.pintura||null,fotogrametria_url:p.fotogrametria_url||null,observaciones:p.observaciones||null,
       photo_path:p.photo_path||null,updated_at:p.updated_at||nowIso(),source_record:p
     };
   }
@@ -229,7 +229,7 @@
           created_order:p.created_order,display_order:p.display_order,reference_order:p.reference_order??null,sample_group:p.sample_group||"sin_clasificar",
           caja:p.caja||"",sigla:p.sigla||"",sitio:p.sitio||"",coleccion:p.coleccion||"",
           publicacion:p.publicacion||"",pagina:p.pagina||"",forma:p.forma||"",forma_otro:p.forma_otro||"",
-          integridad:p.integridad||"",fotogrametria_url:p.fotogrametria_url||"",observaciones:p.observaciones||"",
+          integridad:p.integridad||"",atmosfera_coccion:p.atmosfera_coccion||"",pintura:p.pintura||"",fotogrametria_url:p.fotogrametria_url||"",observaciones:p.observaciones||"",
           photo_path:p.photo_path||"",updated_at:p.updated_at
         })),
         fields:fields.map(f=>({
@@ -885,7 +885,7 @@
 
   function loadPieceForm(id){
     const p=data.pieces.find(x=>x.id===id); if(!p)return; selectedPieceId=id;
-    $("pieceFormTitle").textContent=p.id;$("p_id").value=p.id;$("p_caja").value=p.caja||"";$("p_sigla").value=p.sigla||"";$("p_sitio").value=p.sitio||"";$("p_coleccion").value=p.coleccion||"";$("p_publicacion").value=p.publicacion||"";$("p_pagina").value=p.pagina||"";$("p_forma").value=p.forma||"";$("p_forma_otro").value=p.forma_otro||"";$("p_integridad").value=p.integridad||"";if($("p_group"))$("p_group").value=p.sample_group||"sin_clasificar";if($("p_order"))$("p_order").value=p.display_order||"";$("p_fotogrametria").value=p.fotogrametria_url||"";$("p_observaciones").value=p.observaciones||"";
+    $("pieceFormTitle").textContent=p.id;$("p_id").value=p.id;$("p_caja").value=p.caja||"";$("p_sigla").value=p.sigla||"";$("p_sitio").value=p.sitio||"";$("p_coleccion").value=p.coleccion||"";$("p_publicacion").value=p.publicacion||"";$("p_pagina").value=p.pagina||"";$("p_forma").value=p.forma||"";$("p_forma_otro").value=p.forma_otro||"";$("p_integridad").value=p.integridad||"";$("p_atmosfera").value=p.atmosfera_coccion||"";$("p_pintura").value=p.pintura||"";if($("p_group"))$("p_group").value=p.sample_group||"sin_clasificar";if($("p_order"))$("p_order").value=p.display_order||"";$("p_fotogrametria").value=p.fotogrametria_url||"";$("p_observaciones").value=p.observaciones||"";
     setOtherVisibility();previewFile("piece:"+id,"piecePhotoPreview");renderPieceList();renderPieceFieldsEditor(id);renderPieceLinkedDesignsEditor(id);
     bindPasteZone($("piecePhotoPreview"),id+"-foto",async file=>{
       await putFile("piece:"+id,file);
@@ -1178,7 +1178,7 @@
 
   $("pieceForm").onsubmit=async e=>{
     e.preventDefault();const p=data.pieces.find(x=>x.id===selectedPieceId);if(!p)return;
-    Object.assign(p,{caja:$("p_caja").value.trim(),sigla:$("p_sigla").value.trim(),sitio:$("p_sitio").value.trim(),coleccion:$("p_coleccion").value.trim(),publicacion:$("p_publicacion").value.trim(),pagina:$("p_pagina").value.trim(),forma:$("p_forma").value,forma_otro:$("p_forma_otro").value.trim(),integridad:$("p_integridad").value,sample_group:$("p_group")?.value||p.sample_group||"sin_clasificar",fotogrametria_url:$("p_fotogrametria").value.trim(),observaciones:$("p_observaciones").value.trim(),updated_at:nowIso()});
+    Object.assign(p,{caja:$("p_caja").value.trim(),sigla:$("p_sigla").value.trim(),sitio:$("p_sitio").value.trim(),coleccion:$("p_coleccion").value.trim(),publicacion:$("p_publicacion").value.trim(),pagina:$("p_pagina").value.trim(),forma:$("p_forma").value,forma_otro:$("p_forma_otro").value.trim(),integridad:$("p_integridad").value,atmosfera_coccion:$("p_atmosfera").value,pintura:$("p_pintura").value,sample_group:$("p_group")?.value||p.sample_group||"sin_clasificar",fotogrametria_url:$("p_fotogrametria").value.trim(),observaciones:$("p_observaciones").value.trim(),updated_at:nowIso()});
     const f=$("p_photo").files[0];if(f){await putFile("piece:"+p.id,f);p.photo_file_name=f.name;$("p_photo").value="";}
     saveData();renderPieceList();refreshPieceSelect();await previewFile("piece:"+p.id,"piecePhotoPreview");toast("Pieza guardada");
   };
@@ -1192,7 +1192,7 @@
     const uid=window.MR_MIGRATIONS?.newUid?window.MR_MIGRATIONS.newUid("piece",data):"";
     const display_order=Math.max(0,...data.pieces.map(p=>+p.display_order||0))+1;
     const reference_order=nextReferenceOrder();
-    data.pieces.push({id,uid,caja:"",sigla:"",sitio:"",coleccion:"",publicacion:"",pagina:"",forma:"",forma_otro:"",integridad:"",sample_group:"sin_clasificar",display_order,reference_order,observaciones:"",fotogrametria_url:"",photo_file_name:"",updated_at:""});selectedPieceId=id;saveData();refreshPieceSelect();renderPieceList();loadPieceForm(id);toast("Nueva pieza creada: "+id);
+    data.pieces.push({id,uid,caja:"",sigla:"",sitio:"",coleccion:"",publicacion:"",pagina:"",forma:"",forma_otro:"",integridad:"",atmosfera_coccion:"",pintura:"",sample_group:"sin_clasificar",display_order,reference_order,observaciones:"",fotogrametria_url:"",photo_file_name:"",updated_at:""});selectedPieceId=id;saveData();refreshPieceSelect();renderPieceList();loadPieceForm(id);toast("Nueva pieza creada: "+id);
   };
 
   function renderTechniqueChecks(selected=[]){
@@ -1469,7 +1469,7 @@
     return [cols.map(c=>csvEsc(c.label)).join(","),...rows.map(r=>cols.map(c=>csvEsc(typeof c.get==="function"?c.get(r):r[c.key])).join(","))].join("\n");
   }
   $("exportPieces").onclick=()=>download("muestra_referencia_piezas.csv",toCsv(data.pieces,[
-    {key:"reference_order",label:"ORDEN_REFERENCIA"},{key:"id",label:"ID_PIEZA"},{key:"uid",label:"UID_INTERNO"},{key:"sample_group",label:"GRUPO_MUESTRA"},{key:"display_order",label:"ORDEN_MUESTRA"},{key:"caja",label:"CAJA"},{key:"sigla",label:"SIGLA"},{key:"sitio",label:"SITIO"},{key:"coleccion",label:"COLECCION"},{key:"publicacion",label:"PUBLICACION"},{key:"pagina",label:"PAGINA_LAMINA"},{key:"forma",label:"FORMA"},{key:"forma_otro",label:"FORMA_OTRO"},{key:"integridad",label:"INTEGRIDAD"},{key:"fotogrametria_url",label:"FOTOGRAMETRIA_URL"},{key:"photo_file_name",label:"FOTO_ARCHIVO"},{key:"observaciones",label:"OBSERVACIONES"}
+    {key:"reference_order",label:"ORDEN_REFERENCIA"},{key:"id",label:"ID_PIEZA"},{key:"uid",label:"UID_INTERNO"},{key:"sample_group",label:"GRUPO_MUESTRA"},{key:"display_order",label:"ORDEN_MUESTRA"},{key:"caja",label:"CAJA"},{key:"sigla",label:"SIGLA"},{key:"sitio",label:"SITIO"},{key:"coleccion",label:"COLECCION"},{key:"publicacion",label:"PUBLICACION"},{key:"pagina",label:"PAGINA_LAMINA"},{key:"forma",label:"FORMA"},{key:"forma_otro",label:"FORMA_OTRO"},{key:"integridad",label:"INTEGRIDAD"},{key:"atmosfera_coccion",label:"ATMOSFERA_COCCION"},{key:"pintura",label:"PINTURA"},{get:r=>r.pintura==="Sí"?"PINTADA":(r.atmosfera_coccion==="Reductora"&&r.pintura==="No"?"GRIS_REDUCTORA_NO_PINTADA":"OTRO_INDETERMINADO"),label:"GRUPO_ANALITICO"},{key:"fotogrametria_url",label:"FOTOGRAMETRIA_URL"},{key:"photo_file_name",label:"FOTO_ARCHIVO"},{key:"observaciones",label:"OBSERVACIONES"}
   ]));
   if($("exportFields")) $("exportFields").onclick=()=>download("muestra_referencia_campos.csv",toCsv(data.fields,[
     {key:"id",label:"ID_CAMPO"},{key:"piece_id",label:"ID_PIEZA"},{key:"catalog_code",label:"CODIGO_SECTOR"},{key:"nombre",label:"SECTOR_CAMPO"},{key:"nombre_otro",label:"CAMPO_OTRO"},{key:"design_id",label:"ID_DISENO"},{get:r=>(r.tecnicas||[]).join("|"),label:"TECNICAS"},{key:"tecnica_otro",label:"TECNICA_OTRO"},{get:r=>(r.esquemas||[]).join("|"),label:"ESQUEMAS"},{key:"clase_simetria",label:"CLASE_SIMETRIA"},{key:"colores",label:"COLORES"},{key:"observaciones",label:"OBSERVACIONES"}
@@ -1487,6 +1487,7 @@
         design_id:d.id||f.design_id||"",
         ref_original:d.ref_original||"",
         esquemas_txt:(f.esquemas||[]).join("|"),
+        grupo_analitico:p.pintura==="Sí"?"PINTADA":(p.atmosfera_coccion==="Reductora"&&p.pintura==="No"?"GRIS_REDUCTORA_NO_PINTADA":"OTRO_INDETERMINADO"),
         ...Object.fromEntries(Object.entries(p).map(([k,v])=>["p_"+k,v])),
         ...Object.fromEntries(techs.map(t=>["tec_"+slug(t),(f.tecnicas||[]).includes(t)?1:0])),
         tec_otro:(f.tecnicas||[]).includes("Otro")?1:0
@@ -1495,7 +1496,7 @@
     const cols=[
       {key:"id",label:"ID_CAMPO"},{key:"piece_id",label:"ID_PIEZA"},{key:"design_id",label:"ID_DISENO"},{key:"ref_original",label:"REF_ORIGINAL"},{key:"catalog_code",label:"CODIGO_SECTOR"},
       {key:"nombre",label:"SECTOR_CAMPO"},{key:"nombre_otro",label:"CAMPO_OTRO"},
-      {key:"p_sitio",label:"SITIO"},{key:"p_coleccion",label:"COLECCION"},{key:"p_sigla",label:"SIGLA"},{key:"p_forma",label:"FORMA"},{key:"p_integridad",label:"INTEGRIDAD"},
+      {key:"p_sitio",label:"SITIO"},{key:"p_coleccion",label:"COLECCION"},{key:"p_sigla",label:"SIGLA"},{key:"p_forma",label:"FORMA"},{key:"p_integridad",label:"INTEGRIDAD"},{key:"p_atmosfera_coccion",label:"ATMOSFERA_COCCION"},{key:"p_pintura",label:"PINTURA"},{key:"grupo_analitico",label:"GRUPO_ANALITICO"},
       ...techs.map(t=>({key:"tec_"+slug(t),label:"TEC_"+slug(t).toUpperCase()})),{key:"tec_otro",label:"TEC_OTRO"},
       {key:"esquemas_txt",label:"ESQUEMAS"},{key:"clase_simetria",label:"CLASE_SIMETRIA"},{key:"colores",label:"COLORES"}
     ];
@@ -1510,6 +1511,9 @@
       ["ID_DISENO","Cadena","Identificador único del dibujo que representa un campo decorativo","MR-Dxxxx"],
       ["REF_ORIGINAL","Cadena","Número o referencia del archivo maestro de Inkscape","Texto"],
       ["FORMA","Nominal","Forma primaria de la pieza","Lista cerrada + Otro"],
+      ["ATMOSFERA_COCCION","Nominal","Atmósfera de cocción de la pieza","Reductora; Oxidante; Mixta; Indeterminada"],
+      ["PINTURA","Nominal","Presencia de pintura en la pieza","Sí; No; Indeterminada"],
+      ["GRUPO_ANALITICO","Nominal derivada","Grupo para comparar esquemas según tratamiento tecnológico/decorativo","GRIS_REDUCTORA_NO_PINTADA; PINTADA; OTRO_INDETERMINADO"],
       ["CAMPO_DECORATIVO","Nominal","Sector de la pieza donde se registra el diseño","Lista condicionada por forma + Otro"],
       ["TECNICA_*","Dicotómica","Presencia/ausencia de cada técnica en matriz SPSS","0=ausente; 1=presente"],
       ["ESQUEMA","Nominal abierta","Nombre analítico del esquema identificado","Texto libre"],
