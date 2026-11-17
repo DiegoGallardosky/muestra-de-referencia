@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#10251d">
   <title>Muestra de referencia · Tradición San Francisco</title>
-  <link rel="stylesheet" href="styles.css?v=20261114-1730">
+  <link rel="stylesheet" href="styles.css?v=20261117-1415">
   <style>
     #inicio .scheme-entry {
       display: flex;
@@ -92,7 +92,7 @@
       <div class="section-head">
         <div><span class="eyebrow">CATÁLOGO</span><h2>Ver muestra</h2></div>
         <div class="segmented">
-          <button id="showPiecesBtn" class="active">Piezas</button>
+          <button id="showPiecesBtn" class="active">Muestra de referencia</button>
           <button id="showDesignsBtn">Dibujos</button>
         </div>
       </div>
@@ -169,8 +169,19 @@
           <div class="form-grid">
             <label>ID de diseño<input id="d_id" readonly></label>
             <label>Referencia original<input id="d_ref"></label>
-            <label>Pieza vinculada<select id="d_piece"></select></label>
-            <label>Campo decorativo<select id="d_field"></select><small>Cada dibujo representa un único campo decorativo.</small></label>
+            <label>Pieza vinculada<select id="d_piece"></select><small>Dejalo en “Sin pieza vinculada” para dibujos procedentes de publicaciones u otras referencias.</small></label>
+            <label>Campo decorativo<select id="d_field"></select><small>Para piezas completas, cada dibujo representa un campo registrado. En referencias independientes se crea un campo analítico propio.</small></label>
+            <section id="independentDrawingFields" class="span-2 independent-reference hidden">
+              <div class="analysis-note"><strong>Referencia independiente</strong><span>Usá estos campos cuando el dibujo no pueda vincularse con seguridad a una pieza completa. No es obligatorio inferir datos que no se conozcan.</span></div>
+              <div class="form-grid independent-reference-grid">
+                <label>Forma inferida<select id="d_forma_inferida"></select><small>Puede quedar indeterminada.</small></label>
+                <label>Campo / sector inferido<input id="d_campo_inferido" placeholder="Ej.: cuerpo externo, cuello, indeterminado"></label>
+                <label>Sitio / procedencia<input id="d_sitio_referencia"></label>
+                <label>Publicación / fuente<input id="d_publicacion_referencia"></label>
+                <label>Página / figura / lámina<input id="d_pagina_referencia"></label>
+                <label>Grado de certeza<select id="d_certeza"><option value="">Sin especificar</option><option>Alta</option><option>Media</option><option>Baja</option></select></label>
+              </div>
+            </section>
             <label id="d_campo_legacy_wrap" class="hidden">Campo anterior<input id="d_campo_legacy" readonly></label>
             <div class="span-2 analysis-note"><strong>Variables del campo decorativo</strong><span>Técnica, esquema(s), simetría y colores pertenecen al campo; el dibujo es su representación gráfica.</span></div>
             <label>Clase de simetría<select id="d_simetria"></select></label>
@@ -199,12 +210,12 @@
         <article><h3>Matriz SPSS</h3><p>Una fila por campo decorativo, la unidad de análisis, con variables de pieza y técnicas convertidas a 0/1.</p><button id="exportSpss" class="primary">Descargar matriz_spss.csv</button></article>
         <article><h3>Diccionario</h3><p>Descripción de variables y codificación básica para documentar los análisis.</p><button id="exportDictionary" class="secondary">Descargar diccionario.csv</button></article>
         <article><h3>Respaldo de datos</h3><p>Exporta o importa solamente los datos textuales.</p><button id="exportJson" class="secondary">Exportar JSON</button><label class="import-label">Importar JSON<input id="importJson" type="file" accept=".json,application/json"></label></article>
-        <article><h3>Base central activa</h3><p>La muestra está alojada en Supabase y se abre desde cualquier dispositivo. La edición requiere iniciar sesión con una cuenta autorizada.</p><div class="audit-summary"><strong>40 piezas · 56 campos · 55 dibujos</strong><span>Fotografías y dibujos se guardan en el almacenamiento central.</span></div></article>
+        <article><h3>Base central activa</h3><p>La muestra está alojada en Supabase y se abre desde cualquier dispositivo. La edición requiere iniciar sesión con una cuenta autorizada.</p><div class="audit-summary"><strong id="centralStatusCounts">Base sincronizada</strong><span>Fotografías y dibujos se guardan en el almacenamiento central.</span></div></article>
         <article><h3>Auditoría de integridad</h3><p>Revisa IDs, relaciones pieza–campo–dibujo, sectores incompatibles y registros incompletos.</p><div class="audit-actions"><button id="runAudit" class="secondary">Auditar base</button><button id="repairIds" class="secondary">Corregir secuencia de IDs</button></div><div id="auditSummary" class="audit-summary"></div></article>
         <article><h3>Estado de persistencia</h3><p>Supabase es la fuente principal. Al editar con una cuenta autorizada, los cambios se guardan en la base central y quedan disponibles desde cualquier dispositivo.</p></article>
       </div>
     </section>
-  </main><div id="appVersion" style="position:fixed;right:8px;bottom:6px;font-size:10px;opacity:.45;z-index:20">v2026.11.14-central-edit</div>
+  </main><div id="appVersion" style="position:fixed;right:8px;bottom:6px;font-size:10px;opacity:.45;z-index:20">v2026.11.17-reference</div>
 
   <dialog id="authDialog" class="auth-dialog">
     <button id="closeAuthDialog" class="dialog-close" type="button">×</button>
@@ -237,6 +248,6 @@
   <script src="data.js?v=20261114-1145"></script>
   <script src="migrations.js?v=20261114-1145"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.95.0/dist/umd/supabase.min.js"></script>
-  <script src="app.js?v=20261114-1730"></script>
+  <script src="app.js?v=20261117-1415"></script>
 </body>
 </html>
