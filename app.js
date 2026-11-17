@@ -104,6 +104,7 @@
       certainty:f.certainty||null,
       catalog_code:f.catalog_code||null,nombre:f.nombre||null,nombre_otro:f.nombre_otro||null,
       tecnicas:f.tecnicas||[],tecnica_otro:f.tecnica_otro||null,esquemas:f.esquemas||[],
+      esquemas_normalizados:f.esquemas_normalizados||[],esquemas_codigos:f.esquemas_codigos||[],
       clase_simetria:f.clase_simetria||null,colores:f.colores||null,observaciones:f.observaciones||null,
       created_order:f.created_order??null,updated_at:f.updated_at||nowIso(),source_record:f
     };
@@ -242,6 +243,7 @@
           certainty:f.certainty||"",
           catalog_code:f.catalog_code||"",nombre:f.nombre||"",nombre_otro:f.nombre_otro||"",
           tecnicas:f.tecnicas||[],tecnica_otro:f.tecnica_otro||"",esquemas:f.esquemas||[],
+          esquemas_normalizados:f.esquemas_normalizados||[],esquemas_codigos:f.esquemas_codigos||[],
           clase_simetria:f.clase_simetria||"",colores:f.colores||"",observaciones:f.observaciones||"",
           created_order:f.created_order,updated_at:f.updated_at
         })),
@@ -337,7 +339,7 @@
         const key=[des.piece_id,des.campo_decorativo,des.campo_otro||""].join("||");
         let f=byKey.get(key);
         if(!f){
-          f={id:nextFieldId(),piece_id:des.piece_id,nombre:des.campo_decorativo,nombre_otro:des.campo_otro||"",catalog_code:"",observaciones:"",tecnicas:[],tecnica_otro:"",esquemas:[],clase_simetria:"",colores:"",design_id:"",updated_at:des.updated_at||""};
+          f={id:nextFieldId(),piece_id:des.piece_id,nombre:des.campo_decorativo,nombre_otro:des.campo_otro||"",catalog_code:"",observaciones:"",tecnicas:[],tecnica_otro:"",esquemas:[],esquemas_normalizados:[],esquemas_codigos:[],clase_simetria:"",colores:"",design_id:"",updated_at:des.updated_at||""};
           d.fields.push(f);byKey.set(key,f);
         }
         des.field_id=f.id;
@@ -941,7 +943,7 @@
         piece_id:"",piece_uid:"",source_type:"independent",
         catalog_code:"",nombre:"Otro",nombre_otro:"",
         form_inferred:"",site_reference:"",publication_reference:"",page_reference:"",certainty:"",
-        observaciones:"",tecnicas:[],tecnica_otro:"",esquemas:[],clase_simetria:"",colores:"",
+        observaciones:"",tecnicas:[],tecnica_otro:"",esquemas:[],esquemas_normalizados:[],esquemas_codigos:[],clase_simetria:"",colores:"",
         design_id:d.id,updated_at:nowIso(),
         created_order:Math.max(0,...data.fields.map(x=>+x.created_order||0))+1
       };
@@ -995,7 +997,7 @@
       if(input.checked){
         if(!existingField){
           const id=nextId("MR-C",data.fields);
-          data.fields.push({id,uid:window.MR_MIGRATIONS?.newUid?window.MR_MIGRATIONS.newUid("field",data):"",piece_id:pieceId,piece_uid:data.pieces.find(p=>p.id===pieceId)?.uid||"",catalog_code:item.codigo,nombre:item.nombre,nombre_otro:"",observaciones:"",tecnicas:[],tecnica_otro:"",esquemas:[],clase_simetria:"",colores:"",design_id:"",updated_at:nowIso()});
+          data.fields.push({id,uid:window.MR_MIGRATIONS?.newUid?window.MR_MIGRATIONS.newUid("field",data):"",piece_id:pieceId,piece_uid:data.pieces.find(p=>p.id===pieceId)?.uid||"",catalog_code:item.codigo,nombre:item.nombre,nombre_otro:"",observaciones:"",tecnicas:[],tecnica_otro:"",esquemas:[],esquemas_normalizados:[],esquemas_codigos:[],clase_simetria:"",colores:"",design_id:"",updated_at:nowIso()});
           saveData();toast(item.codigo+" agregado");
         }else if(!existingField.catalog_code){
           existingField.catalog_code=item.codigo;existingField.updated_at=nowIso();saveData();
@@ -1100,7 +1102,7 @@
   $("addFieldBtn").onclick=()=>{
     const pieceId=selectedPieceId;if(!pieceId)return;
     const id=nextId("MR-C",data.fields);
-    data.fields.push({id,uid:window.MR_MIGRATIONS?.newUid?window.MR_MIGRATIONS.newUid("field",data):"",piece_id:pieceId,piece_uid:data.pieces.find(p=>p.id===pieceId)?.uid||"",catalog_code:"",nombre:"Otro",nombre_otro:"",observaciones:"",tecnicas:[],tecnica_otro:"",esquemas:[],clase_simetria:"",colores:"",design_id:"",updated_at:nowIso()});
+    data.fields.push({id,uid:window.MR_MIGRATIONS?.newUid?window.MR_MIGRATIONS.newUid("field",data):"",piece_id:pieceId,piece_uid:data.pieces.find(p=>p.id===pieceId)?.uid||"",catalog_code:"",nombre:"Otro",nombre_otro:"",observaciones:"",tecnicas:[],tecnica_otro:"",esquemas:[],esquemas_normalizados:[],esquemas_codigos:[],clase_simetria:"",colores:"",design_id:"",updated_at:nowIso()});
     saveData();renderPieceFieldsEditor(pieceId);toast("Nuevo campo creado: "+id);
   };
 
@@ -1210,14 +1212,37 @@
     });
   }
 
+  function normalizeSchemeEntry(raw){
+    const original=String(raw||"").trim();
+    if(!original)return null;
+    const amb=original.match(/^\s*(?:esquema\s*|e\s*)(\d+)\s+y\/o\s+(\d+)(.*)$/i);
+    if(amb)return {codigo:null,codigos_posibles:["E"+amb[1],"E"+amb[2]],variante:null,estado:"ambiguo",original};
+    const direct=original.match(/^\s*(?:esquema\s*|e\s*)(\d+)\s*(.*)$/i);
+    if(direct){
+      const variante=(direct[2]||"").replace(/^[\s,;:\-()]+|[\s,;:\-()]+$/g,"").trim()||null;
+      return {codigo:"E"+direct[1],codigos_posibles:[],variante,estado:"seguro",original};
+    }
+    const ref=original.match(/(?:esquema\s*|e\s*)(\d+)/i);
+    if(ref)return {codigo:null,codigos_posibles:["E"+ref[1]],variante:null,estado:"provisional",original};
+    return {codigo:null,codigos_posibles:[],variante:null,estado:"revisar",original};
+  }
+  function normalizeSchemes(list){
+    const normalizados=(list||[]).map(normalizeSchemeEntry).filter(Boolean);
+    const codigos=[...new Set(normalizados.filter(x=>x.estado==="seguro"&&x.codigo).map(x=>x.codigo))];
+    return {normalizados,codigos};
+  }
+
   function writeFieldAnalysisFromForm(field, design=null){
     if(!field)return;
     const techniques=[...document.querySelectorAll('#techniqueChecks input:checked')].map(x=>x.value);
     const schemes=$("d_esquema").value.split("|").map(x=>x.trim()).filter(Boolean);
+    const normalized=normalizeSchemes(schemes);
     Object.assign(field,{
       tecnicas:techniques,
       tecnica_otro:$("d_tecnica_otro").value.trim(),
       esquemas:schemes,
+      esquemas_normalizados:normalized.normalizados,
+      esquemas_codigos:normalized.codigos,
       clase_simetria:$("d_simetria").value,
       colores:$("d_colores").value.trim(),
       updated_at:nowIso()
@@ -1472,7 +1497,7 @@
     {key:"reference_order",label:"ORDEN_REFERENCIA"},{key:"id",label:"ID_PIEZA"},{key:"uid",label:"UID_INTERNO"},{key:"sample_group",label:"GRUPO_MUESTRA"},{key:"display_order",label:"ORDEN_MUESTRA"},{key:"caja",label:"CAJA"},{key:"sigla",label:"SIGLA"},{key:"sitio",label:"SITIO"},{key:"coleccion",label:"COLECCION"},{key:"publicacion",label:"PUBLICACION"},{key:"pagina",label:"PAGINA_LAMINA"},{key:"forma",label:"FORMA"},{key:"forma_otro",label:"FORMA_OTRO"},{key:"integridad",label:"INTEGRIDAD"},{key:"atmosfera_coccion",label:"ATMOSFERA_COCCION"},{key:"pintura",label:"PINTURA"},{get:r=>r.pintura==="Sí"?"PINTADA":(r.atmosfera_coccion==="Reductora"&&r.pintura==="No"?"GRIS_REDUCTORA_NO_PINTADA":"OTRO_INDETERMINADO"),label:"GRUPO_ANALITICO"},{key:"fotogrametria_url",label:"FOTOGRAMETRIA_URL"},{key:"photo_file_name",label:"FOTO_ARCHIVO"},{key:"observaciones",label:"OBSERVACIONES"}
   ]));
   if($("exportFields")) $("exportFields").onclick=()=>download("muestra_referencia_campos.csv",toCsv(data.fields,[
-    {key:"id",label:"ID_CAMPO"},{key:"piece_id",label:"ID_PIEZA"},{key:"catalog_code",label:"CODIGO_SECTOR"},{key:"nombre",label:"SECTOR_CAMPO"},{key:"nombre_otro",label:"CAMPO_OTRO"},{key:"design_id",label:"ID_DISENO"},{get:r=>(r.tecnicas||[]).join("|"),label:"TECNICAS"},{key:"tecnica_otro",label:"TECNICA_OTRO"},{get:r=>(r.esquemas||[]).join("|"),label:"ESQUEMAS"},{key:"clase_simetria",label:"CLASE_SIMETRIA"},{key:"colores",label:"COLORES"},{key:"observaciones",label:"OBSERVACIONES"}
+    {key:"id",label:"ID_CAMPO"},{key:"piece_id",label:"ID_PIEZA"},{key:"catalog_code",label:"CODIGO_SECTOR"},{key:"nombre",label:"SECTOR_CAMPO"},{key:"nombre_otro",label:"CAMPO_OTRO"},{key:"design_id",label:"ID_DISENO"},{get:r=>(r.tecnicas||[]).join("|"),label:"TECNICAS"},{key:"tecnica_otro",label:"TECNICA_OTRO"},{get:r=>(r.esquemas||[]).join("|"),label:"ESQUEMAS_ORIGINAL"},{get:r=>(r.esquemas_codigos||[]).join("|"),label:"ESQUEMAS_CODIGOS"},{get:r=>JSON.stringify(r.esquemas_normalizados||[]),label:"ESQUEMAS_NORMALIZADOS"},{key:"clase_simetria",label:"CLASE_SIMETRIA"},{key:"colores",label:"COLORES"},{key:"observaciones",label:"OBSERVACIONES"}
   ]));
   $("exportDesigns").onclick=()=>download("muestra_referencia_dibujos.csv",toCsv(data.designs,[
     {key:"reference_order",label:"ORDEN_REFERENCIA"},{key:"id",label:"ID_DISENO"},{key:"ref_original",label:"REF_ORIGINAL"},{key:"piece_id",label:"ID_PIEZA"},{key:"field_id",label:"ID_CAMPO"},{key:"campo_decorativo",label:"CAMPO_DECORATIVO"},{key:"campo_otro",label:"CAMPO_OTRO"},{get:r=>(r.tecnicas||[]).join("|"),label:"TECNICAS"},{key:"tecnica_otro",label:"TECNICA_OTRO"},{key:"esquema",label:"ESQUEMA"},{key:"clase_simetria",label:"CLASE_SIMETRIA"},{key:"colores",label:"COLORES"},{key:"design_file_name",label:"DISENO_ARCHIVO"},{key:"observaciones",label:"OBSERVACIONES"}
@@ -1487,6 +1512,8 @@
         design_id:d.id||f.design_id||"",
         ref_original:d.ref_original||"",
         esquemas_txt:(f.esquemas||[]).join("|"),
+        esquemas_codigos_txt:(f.esquemas_codigos||[]).join("|"),
+        esquemas_variantes_txt:(f.esquemas_normalizados||[]).map(x=>[x.codigo||"",x.variante||"",x.estado||""].filter(Boolean).join(":")).join("|"),
         grupo_analitico:p.pintura==="Sí"?"PINTADA":(p.atmosfera_coccion==="Reductora"&&p.pintura==="No"?"GRIS_REDUCTORA_NO_PINTADA":"OTRO_INDETERMINADO"),
         ...Object.fromEntries(Object.entries(p).map(([k,v])=>["p_"+k,v])),
         ...Object.fromEntries(techs.map(t=>["tec_"+slug(t),(f.tecnicas||[]).includes(t)?1:0])),
@@ -1498,7 +1525,7 @@
       {key:"nombre",label:"SECTOR_CAMPO"},{key:"nombre_otro",label:"CAMPO_OTRO"},
       {key:"p_sitio",label:"SITIO"},{key:"p_coleccion",label:"COLECCION"},{key:"p_sigla",label:"SIGLA"},{key:"p_forma",label:"FORMA"},{key:"p_integridad",label:"INTEGRIDAD"},{key:"p_atmosfera_coccion",label:"ATMOSFERA_COCCION"},{key:"p_pintura",label:"PINTURA"},{key:"grupo_analitico",label:"GRUPO_ANALITICO"},
       ...techs.map(t=>({key:"tec_"+slug(t),label:"TEC_"+slug(t).toUpperCase()})),{key:"tec_otro",label:"TEC_OTRO"},
-      {key:"esquemas_txt",label:"ESQUEMAS"},{key:"clase_simetria",label:"CLASE_SIMETRIA"},{key:"colores",label:"COLORES"}
+      {key:"esquemas_txt",label:"ESQUEMAS_ORIGINAL"},{key:"esquemas_codigos_txt",label:"ESQUEMAS_CODIGOS"},{key:"esquemas_variantes_txt",label:"ESQUEMAS_VARIANTES_ESTADO"},{key:"clase_simetria",label:"CLASE_SIMETRIA"},{key:"colores",label:"COLORES"}
     ];
     download("muestra_referencia_matriz_spss.csv",toCsv(rows,cols));
   };
@@ -1516,7 +1543,9 @@
       ["GRUPO_ANALITICO","Nominal derivada","Grupo para comparar esquemas según tratamiento tecnológico/decorativo","GRIS_REDUCTORA_NO_PINTADA; PINTADA; OTRO_INDETERMINADO"],
       ["CAMPO_DECORATIVO","Nominal","Sector de la pieza donde se registra el diseño","Lista condicionada por forma + Otro"],
       ["TECNICA_*","Dicotómica","Presencia/ausencia de cada técnica en matriz SPSS","0=ausente; 1=presente"],
-      ["ESQUEMA","Nominal abierta","Nombre analítico del esquema identificado","Texto libre"],
+      ["ESQUEMAS_ORIGINAL","Texto","Registro original de esquema(s), preservado sin cambios","Texto libre"],
+      ["ESQUEMAS_CODIGOS","Nominal múltiple","Códigos base seguros derivados para análisis","E1|E2|..."],
+      ["ESQUEMAS_NORMALIZADOS","Estructurada","Código base, variante, estado y texto original por esquema","JSON; estado=seguro/ambiguo/provisional/revisar"],
       ["CLASE_SIMETRIA","Nominal","Clase de simetría registrada","Lista controlada"],
       ["COLORES","Texto","Descripción de colores empleados","Texto libre"]
     ];
