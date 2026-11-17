@@ -54,6 +54,18 @@
     if($("authButton"))$("authButton").textContent=editorMode?"Editor activo":"Iniciar sesión";
   }
 
+  async function cleanupApprovedObsoleteDrawings(){
+    if(!centralMode||!editorMode)return;
+    const targets=[
+      {id:"MR-D0047",uid:"DUID-000006"},
+      {id:"MR-D0048",uid:"DUID-000023"}
+    ];
+    for(const target of targets){
+      const d=data.designs.find(x=>x.uid===target.uid && x.id===target.id);
+      if(d) await deleteDrawingRecord(target.id);
+    }
+  }
+
   async function refreshAuthUI(){
     if(!supabaseClient)return;
     const {data:{session}}=await supabaseClient.auth.getSession();
@@ -65,6 +77,7 @@
     const {data:row}=await supabaseClient.from("editors").select("user_id").eq("user_id",session.user.id).maybeSingle();
     const isEditor=!!row;
     setEditingEnabled(isEditor);
+    if(isEditor) await cleanupApprovedObsoleteDrawings();
     if($("authEditorState"))$("authEditorState").textContent=isEditor
       ?"Cuenta autorizada para editar la base central."
       :"La cuenta está autenticada, pero todavía no tiene permiso de edición.";
@@ -350,33 +363,8 @@
       }
     });
 
-    // Limpieza de placeholders heredados del archivo maestro inicial.
-    // No se consideran registros reales los MR-D que solo conservan una
-    // referencia original o una pieza preasignada, pero no tienen campo,
-    // imagen ni variables analíticas cargadas.
-    const removedPlaceholderIds=[];
-    d.designs=d.designs.filter(des=>{
-      if(des.field_id) return true;
-      const substantive=!!(
-        des.design_file_name ||
-        des.esquema ||
-        des.clase_simetria ||
-        des.colores ||
-        des.observaciones ||
-        des.campo_decorativo ||
-        des.campo_otro ||
-        des.tecnica_otro ||
-        (des.tecnicas||[]).length
-      );
-      if(!substantive) removedPlaceholderIds.push(des.id);
-      return substantive;
-    });
-    if(removedPlaceholderIds.length){
-      d.fields.forEach(f=>{
-        if(removedPlaceholderIds.includes(f.design_id)) f.design_id="";
-      });
-    }
-
+    // Los dibujos sin pieza/campo pueden ser referencias independientes legítimas.
+    // Nunca se eliminan automáticamente por estar incompletos.
     d.schema_version=5;
     return window.MR_MIGRATIONS?.upgrade ? window.MR_MIGRATIONS.upgrade(d) : d;
   }
