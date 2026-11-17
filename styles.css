@@ -226,3 +226,13 @@ dialog{
   .media-field{grid-template-columns:1fr}
   .media-field input[type=file]{max-width:none}
 }
+
+/* Corrección fuerte de overflow del editor */
+html,body{max-width:100%;overflow-x:hidden}
+#editar,.editor-layout,.editor-card,.record-list-panel{min-width:0;max-width:100%}
+.editor-layout{grid-template-columns:310px minmax(0,1fr)}
+.editor-card{width:100%}
+.editor-card .form-grid{width:100%}
+.editor-card input,.editor-card select,.editor-card textarea,.editor-card button{max-width:100%}
+.media-field{width:100%}
+.media-preview{width:100%;max-width:100%}
