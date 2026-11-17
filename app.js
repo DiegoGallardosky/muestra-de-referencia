@@ -260,10 +260,17 @@
           if(d)f.design_id=d.id;
         }
       });
+      const localDrafts=(data?.designs||[]).filter(d=>d?._draft);
+      const previousSelectedDesignId=selectedDesignId;
       data=migrateData(central);
+      for(const draft of localDrafts){
+        if(data.designs.some(d=>d.uid===draft.uid || d.id===draft.id)) continue;
+        data.designs.push(draft);
+      }
       centralMode=true;
       selectedPieceId=data.pieces[0]?.id||"";
-      selectedDesignId=data.designs[0]?.id||"";
+      selectedDesignId=data.designs.some(d=>d.id===previousSelectedDesignId)?previousSelectedDesignId:(data.designs[0]?.id||"");
+      localStorage.setItem(STORE_KEY,JSON.stringify(data));
       return true;
     }catch(err){
       console.error("No se pudo cargar la base central",err);
@@ -415,16 +422,26 @@
       req.onsuccess=()=>resolve(req.result); req.onerror=()=>reject(req.error);
     });
   }
-  async function putFile(key,file){
-    if(centralMode&&editorMode){
-      await uploadCentralLiveMedia(key,file);
-      return;
-    }
+  async function putLocalFile(key,file){
     const db=await openDb();
     return new Promise((resolve,reject)=>{
       const tx=db.transaction(DB_STORE,"readwrite"); tx.objectStore(DB_STORE).put(file,key);
       tx.oncomplete=()=>resolve(); tx.onerror=()=>reject(tx.error);
     });
+  }
+  async function deleteLocalFile(key){
+    const db=await openDb();
+    return new Promise((resolve,reject)=>{
+      const tx=db.transaction(DB_STORE,"readwrite"); tx.objectStore(DB_STORE).delete(key);
+      tx.oncomplete=()=>resolve(); tx.onerror=()=>reject(tx.error);
+    });
+  }
+  async function putFile(key,file){
+    if(centralMode&&editorMode){
+      await uploadCentralLiveMedia(key,file);
+      return;
+    }
+    return putLocalFile(key,file);
   }
   async function getFile(key){
     const db=await openDb();
@@ -438,11 +455,7 @@
       await deleteCentralLiveMedia(key);
       return;
     }
-    const db=await openDb();
-    return new Promise((resolve,reject)=>{
-      const tx=db.transaction(DB_STORE,"readwrite"); tx.objectStore(DB_STORE).delete(key);
-      tx.oncomplete=()=>resolve(); tx.onerror=()=>reject(tx.error);
-    });
+    return deleteLocalFile(key);
   }
   async function moveFileKey(oldKey,newKey){
     if(oldKey===newKey)return;
@@ -605,6 +618,7 @@
     return [p.forma||"Forma pendiente",p.sitio||p.coleccion||""].filter(Boolean).join(" · ");
   }
   function designLabel(d){
+    if(d?._draft && d.design_file_name) return "Captura pegada · pendiente de guardar";
     if(isEmptyDrawingDraft(d)) return "Borrador vacío";
     return [d.esquema||"Esquema pendiente",d.clase_simetria||""].filter(Boolean).join(" · ");
   }
@@ -619,7 +633,7 @@
   }
 
   function isVisibleDrawing(d){
-    if(!d)return false;
+    if(!d || d._draft)return false;
     const validField=!!(d.field_id && data.fields.some(f=>f.id===d.field_id));
     return validField || !!(
       d.design_file_name || d.esquema || d.clase_simetria || d.colores ||
@@ -847,11 +861,11 @@
     const rows=[...data.designs].sort((a,b)=>numericId(a.id,"MR-D")-numericId(b.id,"MR-D"))
       .filter(d=>[d.id,d.ref_original,d.piece_id,d.esquema,d.clase_simetria,isEmptyDrawingDraft(d)?"borrador vacío":""].join(" ").toLowerCase().includes(q));
     rows.forEach(d=>{
-      const draft=isEmptyDrawingDraft(d);
+      const draft=!!d._draft || isEmptyDrawingDraft(d);
       const row=document.createElement("div");
       row.className="record-row"+(d.id===selectedDesignId?" active":"")+(draft?" draft-row":"");
       row.dataset.designId=d.id;
-      row.innerHTML=`<strong>${esc(d.id)}</strong><small>${draft?'<span class="draft-badge">Borrador vacío</span>':esc(designLabel(d)||d.ref_original||"pendiente")}</small>`;
+      row.innerHTML=`<strong>${esc(d.id)}</strong><small>${draft?'<span class="draft-badge">'+esc(designLabel(d))+'</span>':esc(designLabel(d)||d.ref_original||"pendiente")}</small>`;
       row.onclick=()=>{selectedDesignId=d.id;renderDesignList();loadDesignForm(d.id);};
       box.appendChild(row);
     });
@@ -1262,7 +1276,17 @@
     previewFile("design:"+id,"designImagePreview");
     renderDesignList();
     bindPasteZone($("designImagePreview"),id+"-diseno",async file=>{
-      if(d._draft){toast("Guardá primero el nuevo dibujo; después podés pegar la imagen con Ctrl+V");return;}
+      if(d._draft){
+        await putLocalFile("design:"+id,file);
+        d.design_file_name=file.name;
+        d._staged_media=true;
+        d.updated_at=nowIso();
+        saveData();
+        renderDesignList();
+        await previewFile("design:"+id,"designImagePreview");
+        toast("Captura pegada en "+id+" · se subirá al guardar");
+        return;
+      }
       await putFile("design:"+id,file);
       d.design_file_name=file.name;d.updated_at=nowIso();saveData();
       await previewFile("design:"+id,"designImagePreview");
@@ -1337,6 +1361,7 @@
     e.preventDefault();
     const d=data.designs.find(x=>x.id===selectedDesignId);if(!d)return;
     const wasDraft=!!d._draft;
+    const stagedFile=wasDraft ? await getFile("design:"+d.id) : null;
     const pieceId=$("d_piece").value;
 
     if(!pieceId){
@@ -1402,13 +1427,27 @@
     }
     d._draft=false;
     saveData();
-    if(centralMode&&editorMode&&(wasDraft||$("d_image").files[0])) await syncAllCentral();
-    const file=$("d_image").files[0];
-    if(file){await putFile("design:"+d.id,file);d.design_file_name=file.name;$("d_image").value="";saveData();}
+    const selectedFile=$("d_image").files[0]||null;
+    if(centralMode&&editorMode&&(wasDraft||selectedFile||stagedFile)) await syncAllCentral();
+    const file=selectedFile||stagedFile;
+    if(file){
+      await putFile("design:"+d.id,file);
+      d.design_file_name=file.name;
+      d._staged_media=false;
+      $("d_image").value="";
+      if(stagedFile) await deleteLocalFile("design:"+d.id);
+      saveData();
+    }
     renderDesignList();renderCatalog();await previewFile("design:"+d.id,"designImagePreview");
     toast(d.piece_id?"Diseño guardado":"Referencia independiente guardada");
   };
-  $("removeDesignImage").onclick=async()=>{await deleteFile("design:"+selectedDesignId);const d=data.designs.find(x=>x.id===selectedDesignId);if(d)d.design_file_name="";saveData();previewFile("design:"+selectedDesignId,"designImagePreview");toast("Archivo eliminado");};
+  $("removeDesignImage").onclick=async()=>{
+    const d=data.designs.find(x=>x.id===selectedDesignId);
+    if(d?._draft) await deleteLocalFile("design:"+selectedDesignId);
+    else await deleteFile("design:"+selectedDesignId);
+    if(d){d.design_file_name="";d._staged_media=false;}
+    saveData();renderDesignList();previewFile("design:"+selectedDesignId,"designImagePreview");toast("Archivo eliminado");
+  };
   $("newDesignBtn").onclick=()=>{
     const reusable=[...data.designs].filter(isEmptyDrawingDraft).sort((a,b)=>numericId(a.id,"MR-D")-numericId(b.id,"MR-D"))[0];
     if(reusable){
