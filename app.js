@@ -673,7 +673,7 @@
           const schemes=(f?.esquemas&&f.esquemas.length)?f.esquemas.join(" | "):(item.esquema||"");
           const form=f?.form_inferred||item.form_inferred||"Forma indeterminada";
           const fieldName=f?.nombre_otro||item.campo_otro||"Campo indeterminado";
-          body.innerHTML=`<span class="reference-order">${esc(referenceLabel(item))}</span><span class="card-id">${esc(item.id)}</span><h3>${esc(schemes||"Esquema por identificar")}</h3><p>Dibujo de referencia · ${esc(form)}</p><div class="chips"><span class="chip">Referencia independiente</span>${fieldName?'<span class="chip">'+esc(fieldName)+'</span>':''}</div>`;
+          body.innerHTML=`<span class="card-id card-reference-id">${esc(referenceLabel(item))}${referenceLabel(item)?" · ":""}${esc(item.id)}</span><h3>${esc(schemes||"Esquema por identificar")}</h3><p>Dibujo de referencia · ${esc(form)}</p><div class="chips"><span class="chip">Referencia independiente</span>${fieldName?'<span class="chip">'+esc(fieldName)+'</span>':''}</div>`;
           const u=await mediaUrl("design:"+item.id);if(u){media.innerHTML='<img alt="">';media.querySelector("img").src=u;}
           card.onclick=()=>openDesignDetail(item.id);
         }else{
