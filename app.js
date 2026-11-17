@@ -87,7 +87,7 @@
   function centralPieceRowLive(p){
     return {
       uid:p.uid,visible_id:p.id,legacy_id:p.legacy_id||null,id_history:p.id_history||[],
-      created_order:p.created_order??null,display_order:p.display_order??null,sample_group:p.sample_group||null,
+      created_order:p.created_order??null,display_order:p.display_order??null,reference_order:p.reference_order??null,sample_group:p.sample_group||null,
       caja:p.caja||null,sigla:p.sigla||null,sitio:p.sitio||null,coleccion:p.coleccion||null,
       publicacion:p.publicacion||null,pagina:p.pagina||null,forma:p.forma||null,forma_otro:p.forma_otro||null,
       integridad:p.integridad||null,fotogrametria_url:p.fotogrametria_url||null,observaciones:p.observaciones||null,
@@ -114,7 +114,7 @@
       piece_uid:d.piece_uid||data.pieces.find(p=>p.id===d.piece_id)?.uid||null,
       field_uid:d.field_uid||data.fields.find(f=>f.id===d.field_id)?.uid||null,
       ref_original:d.ref_original||null,drawing_path:d.drawing_path||null,observaciones:d.observaciones||null,
-      created_order:d.created_order??null,updated_at:d.updated_at||nowIso(),source_record:d
+      created_order:d.created_order??null,reference_order:d.reference_order??null,updated_at:d.updated_at||nowIso(),source_record:d
     };
   }
 
@@ -225,7 +225,7 @@
         pieces:pieces.map(p=>({
           ...(p.source_record||{}),
           id:p.visible_id,uid:p.uid,legacy_id:p.legacy_id||"",id_history:p.id_history||[],
-          created_order:p.created_order,display_order:p.display_order,sample_group:p.sample_group||"sin_clasificar",
+          created_order:p.created_order,display_order:p.display_order,reference_order:p.reference_order??null,sample_group:p.sample_group||"sin_clasificar",
           caja:p.caja||"",sigla:p.sigla||"",sitio:p.sitio||"",coleccion:p.coleccion||"",
           publicacion:p.publicacion||"",pagina:p.pagina||"",forma:p.forma||"",forma_otro:p.forma_otro||"",
           integridad:p.integridad||"",fotogrametria_url:p.fotogrametria_url||"",observaciones:p.observaciones||"",
@@ -250,7 +250,7 @@
           piece_uid:d.piece_uid||"",piece_id:pByUid.get(d.piece_uid)?.visible_id||d.source_record?.piece_id||"",
           field_uid:d.field_uid||"",field_id:fByUid.get(d.field_uid)?.visible_id||d.source_record?.field_id||"",
           ref_original:d.ref_original||"",drawing_path:d.drawing_path||"",observaciones:d.observaciones||"",
-          created_order:d.created_order,updated_at:d.updated_at
+          created_order:d.created_order,reference_order:d.reference_order??null,updated_at:d.updated_at
         }))
       };
       central.fields.forEach(f=>{
@@ -571,6 +571,19 @@
     return [...data.pieces].sort((a,b)=>(+a.display_order||999999)-(+b.display_order||999999) || numericId(a.id,"MR-P")-numericId(b.id,"MR-P"));
   }
 
+  function nextReferenceOrder(){
+    const nums=[
+      ...data.pieces.map(p=>+p.reference_order||0),
+      ...data.designs.filter(d=>!d.piece_id).map(d=>+d.reference_order||0)
+    ];
+    return Math.max(0,...nums)+1;
+  }
+
+  function referenceLabel(item){
+    const n=+item?.reference_order||0;
+    return n ? "REF. "+String(n).padStart(3,"0") : "";
+  }
+
   function refreshPieceSelect(){
     const el=$("d_piece"); const val=el.value;
     fillSelect(el,orderedPieces().map(p=>p.id),"Sin pieza vinculada");
@@ -626,8 +639,8 @@
     const items=currentViewMode==="pieces"
       ? [
           ...orderedPieces().map(x=>({...x,_catalogType:"piece"})),
-          ...data.designs.filter(d=>!d.piece_id && isVisibleDrawing(d)).sort((a,b)=>numericId(a.id,"MR-D")-numericId(b.id,"MR-D")).map(x=>({...x,_catalogType:"independent_design"}))
-        ]
+          ...data.designs.filter(d=>!d.piece_id && isVisibleDrawing(d)).map(x=>({...x,_catalogType:"independent_design"}))
+        ].sort((a,b)=>(+a.reference_order||999999)-(+b.reference_order||999999) || String(a.id).localeCompare(String(b.id)))
       : data.designs.filter(isVisibleDrawing).sort((a,b)=>numericId(a.id,"MR-D")-numericId(b.id,"MR-D")).map(x=>({...x,_catalogType:"design"}));
     const filtered=items.filter(item=>{
       let hay="";
@@ -660,11 +673,11 @@
           const schemes=(f?.esquemas&&f.esquemas.length)?f.esquemas.join(" | "):(item.esquema||"");
           const form=f?.form_inferred||item.form_inferred||"Forma indeterminada";
           const fieldName=f?.nombre_otro||item.campo_otro||"Campo indeterminado";
-          body.innerHTML=`<span class="card-id">${esc(item.id)}</span><h3>${esc(schemes||"Esquema por identificar")}</h3><p>Dibujo de referencia · ${esc(form)}</p><div class="chips"><span class="chip">Referencia independiente</span>${fieldName?'<span class="chip">'+esc(fieldName)+'</span>':''}</div>`;
+          body.innerHTML=`<span class="reference-order">${esc(referenceLabel(item))}</span><span class="card-id">${esc(item.id)}</span><h3>${esc(schemes||"Esquema por identificar")}</h3><p>Dibujo de referencia · ${esc(form)}</p><div class="chips"><span class="chip">Referencia independiente</span>${fieldName?'<span class="chip">'+esc(fieldName)+'</span>':''}</div>`;
           const u=await mediaUrl("design:"+item.id);if(u){media.innerHTML='<img alt="">';media.querySelector("img").src=u;}
           card.onclick=()=>openDesignDetail(item.id);
         }else{
-          body.innerHTML=`<span class="card-id">${esc(item.id)}</span><h3>${esc(item.forma||"Pieza sin clasificar")}</h3><p>${esc(item.sitio||item.coleccion||"Procedencia pendiente")}</p><div class="chips">${item.integridad?'<span class="chip">'+esc(item.integridad)+'</span>':''}<span class="chip">${data.designs.filter(d=>d.piece_id===item.id).length} diseño(s)</span></div>`;
+          body.innerHTML=`<span class="reference-order">${esc(referenceLabel(item))}</span><span class="card-id">${esc(item.id)}</span><h3>${esc(item.forma||"Pieza sin clasificar")}</h3><p>${esc(item.sitio||item.coleccion||"Procedencia pendiente")}</p><div class="chips">${item.integridad?'<span class="chip">'+esc(item.integridad)+'</span>':''}<span class="chip">${data.designs.filter(d=>d.piece_id===item.id).length} diseño(s)</span></div>`;
           const u=await mediaUrl("piece:"+item.id); if(u){media.innerHTML='<img alt="">';media.querySelector("img").src=u;}
           card.onclick=()=>openPieceDetail(item.id);
         }
@@ -1140,7 +1153,8 @@
     const id=nextId("MR-P",data.pieces);
     const uid=window.MR_MIGRATIONS?.newUid?window.MR_MIGRATIONS.newUid("piece",data):"";
     const display_order=Math.max(0,...data.pieces.map(p=>+p.display_order||0))+1;
-    data.pieces.push({id,uid,caja:"",sigla:"",sitio:"",coleccion:"",publicacion:"",pagina:"",forma:"",forma_otro:"",integridad:"",sample_group:"sin_clasificar",display_order,observaciones:"",fotogrametria_url:"",photo_file_name:"",updated_at:""});selectedPieceId=id;saveData();refreshPieceSelect();renderPieceList();loadPieceForm(id);toast("Nueva pieza creada: "+id);
+    const reference_order=nextReferenceOrder();
+    data.pieces.push({id,uid,caja:"",sigla:"",sitio:"",coleccion:"",publicacion:"",pagina:"",forma:"",forma_otro:"",integridad:"",sample_group:"sin_clasificar",display_order,reference_order,observaciones:"",fotogrametria_url:"",photo_file_name:"",updated_at:""});selectedPieceId=id;saveData();refreshPieceSelect();renderPieceList();loadPieceForm(id);toast("Nueva pieza creada: "+id);
   };
 
   function renderTechniqueChecks(selected=[]){
@@ -1310,6 +1324,7 @@
       independentField.page_reference=$("d_pagina_referencia").value.trim();
       independentField.certainty=$("d_certeza").value;
       independentField.design_id=d.id;
+      if(!d.reference_order) d.reference_order=nextReferenceOrder();
       writeFieldAnalysisFromForm(independentField,d);
       Object.assign(d,{
         ref_original:$("d_ref").value.trim() || independentField.publication_reference,
@@ -1336,6 +1351,7 @@
       writeFieldAnalysisFromForm(selectedField,d);
       Object.assign(d,{
         ref_original:$("d_ref").value.trim(),
+        reference_order:null,
         piece_id:selectedField.piece_id,
         piece_uid:selectedField.piece_uid||data.pieces.find(p=>p.id===selectedField.piece_id)?.uid||"",
         field_id:selectedField.id,
@@ -1361,7 +1377,7 @@
   };
   $("removeDesignImage").onclick=async()=>{await deleteFile("design:"+selectedDesignId);const d=data.designs.find(x=>x.id===selectedDesignId);if(d)d.design_file_name="";saveData();previewFile("design:"+selectedDesignId,"designImagePreview");toast("Archivo eliminado");};
   $("newDesignBtn").onclick=()=>{
-    const id=nextId("MR-D",data.designs);data.designs.push({id,uid:window.MR_MIGRATIONS?.newUid?window.MR_MIGRATIONS.newUid("design",data):"",ref_original:"",piece_id:"",piece_uid:"",field_id:"",field_uid:"",campo_otro:"",form_inferred:"",tecnicas:[],tecnica_otro:"",esquema:"",clase_simetria:"",colores:"",observaciones:"",design_file_name:"",updated_at:""});selectedDesignId=id;saveData();renderDesignList();loadDesignForm(id);toast("Nuevo diseño creado: "+id);
+    const id=nextId("MR-D",data.designs);data.designs.push({id,uid:window.MR_MIGRATIONS?.newUid?window.MR_MIGRATIONS.newUid("design",data):"",ref_original:"",piece_id:"",piece_uid:"",field_id:"",field_uid:"",campo_otro:"",form_inferred:"",reference_order:null,tecnicas:[],tecnica_otro:"",esquema:"",clase_simetria:"",colores:"",observaciones:"",design_file_name:"",updated_at:""});selectedDesignId=id;saveData();renderDesignList();loadDesignForm(id);toast("Nuevo diseño creado: "+id);
   };
 
   // CSV/SPSS exports
@@ -1373,13 +1389,13 @@
     return [cols.map(c=>csvEsc(c.label)).join(","),...rows.map(r=>cols.map(c=>csvEsc(typeof c.get==="function"?c.get(r):r[c.key])).join(","))].join("\n");
   }
   $("exportPieces").onclick=()=>download("muestra_referencia_piezas.csv",toCsv(data.pieces,[
-    {key:"id",label:"ID_PIEZA"},{key:"uid",label:"UID_INTERNO"},{key:"sample_group",label:"GRUPO_MUESTRA"},{key:"display_order",label:"ORDEN_MUESTRA"},{key:"caja",label:"CAJA"},{key:"sigla",label:"SIGLA"},{key:"sitio",label:"SITIO"},{key:"coleccion",label:"COLECCION"},{key:"publicacion",label:"PUBLICACION"},{key:"pagina",label:"PAGINA_LAMINA"},{key:"forma",label:"FORMA"},{key:"forma_otro",label:"FORMA_OTRO"},{key:"integridad",label:"INTEGRIDAD"},{key:"fotogrametria_url",label:"FOTOGRAMETRIA_URL"},{key:"photo_file_name",label:"FOTO_ARCHIVO"},{key:"observaciones",label:"OBSERVACIONES"}
+    {key:"reference_order",label:"ORDEN_REFERENCIA"},{key:"id",label:"ID_PIEZA"},{key:"uid",label:"UID_INTERNO"},{key:"sample_group",label:"GRUPO_MUESTRA"},{key:"display_order",label:"ORDEN_MUESTRA"},{key:"caja",label:"CAJA"},{key:"sigla",label:"SIGLA"},{key:"sitio",label:"SITIO"},{key:"coleccion",label:"COLECCION"},{key:"publicacion",label:"PUBLICACION"},{key:"pagina",label:"PAGINA_LAMINA"},{key:"forma",label:"FORMA"},{key:"forma_otro",label:"FORMA_OTRO"},{key:"integridad",label:"INTEGRIDAD"},{key:"fotogrametria_url",label:"FOTOGRAMETRIA_URL"},{key:"photo_file_name",label:"FOTO_ARCHIVO"},{key:"observaciones",label:"OBSERVACIONES"}
   ]));
   if($("exportFields")) $("exportFields").onclick=()=>download("muestra_referencia_campos.csv",toCsv(data.fields,[
     {key:"id",label:"ID_CAMPO"},{key:"piece_id",label:"ID_PIEZA"},{key:"catalog_code",label:"CODIGO_SECTOR"},{key:"nombre",label:"SECTOR_CAMPO"},{key:"nombre_otro",label:"CAMPO_OTRO"},{key:"design_id",label:"ID_DISENO"},{get:r=>(r.tecnicas||[]).join("|"),label:"TECNICAS"},{key:"tecnica_otro",label:"TECNICA_OTRO"},{get:r=>(r.esquemas||[]).join("|"),label:"ESQUEMAS"},{key:"clase_simetria",label:"CLASE_SIMETRIA"},{key:"colores",label:"COLORES"},{key:"observaciones",label:"OBSERVACIONES"}
   ]));
   $("exportDesigns").onclick=()=>download("muestra_referencia_dibujos.csv",toCsv(data.designs,[
-    {key:"id",label:"ID_DISENO"},{key:"ref_original",label:"REF_ORIGINAL"},{key:"piece_id",label:"ID_PIEZA"},{key:"field_id",label:"ID_CAMPO"},{key:"campo_decorativo",label:"CAMPO_DECORATIVO"},{key:"campo_otro",label:"CAMPO_OTRO"},{get:r=>(r.tecnicas||[]).join("|"),label:"TECNICAS"},{key:"tecnica_otro",label:"TECNICA_OTRO"},{key:"esquema",label:"ESQUEMA"},{key:"clase_simetria",label:"CLASE_SIMETRIA"},{key:"colores",label:"COLORES"},{key:"design_file_name",label:"DISENO_ARCHIVO"},{key:"observaciones",label:"OBSERVACIONES"}
+    {key:"reference_order",label:"ORDEN_REFERENCIA"},{key:"id",label:"ID_DISENO"},{key:"ref_original",label:"REF_ORIGINAL"},{key:"piece_id",label:"ID_PIEZA"},{key:"field_id",label:"ID_CAMPO"},{key:"campo_decorativo",label:"CAMPO_DECORATIVO"},{key:"campo_otro",label:"CAMPO_OTRO"},{get:r=>(r.tecnicas||[]).join("|"),label:"TECNICAS"},{key:"tecnica_otro",label:"TECNICA_OTRO"},{key:"esquema",label:"ESQUEMA"},{key:"clase_simetria",label:"CLASE_SIMETRIA"},{key:"colores",label:"COLORES"},{key:"design_file_name",label:"DISENO_ARCHIVO"},{key:"observaciones",label:"OBSERVACIONES"}
   ]));
   $("exportSpss").onclick=()=>{
     const techs=data.options.tecnicas.filter(x=>x!=="Otro");
