@@ -711,25 +711,10 @@
     const q=$("searchInput").value.trim().toLowerCase();
     const ff=$("filterForm").value, fs=$("filterSite").value;
     const items=currentViewMode==="pieces"
-      ? (()=> {
-          // Orden visual solamente: no modifica registros, IDs ni relaciones.
-          const formOrder=new Map((data.options.formas||[]).map((form,index)=>[form,index]));
-          const pieces=[...data.pieces]
-            .sort((a,b)=>{
-              const formA=formOrder.has(a.forma)?formOrder.get(a.forma):999999;
-              const formB=formOrder.has(b.forma)?formOrder.get(b.forma):999999;
-              return formA-formB
-                || (+a.display_order||999999)-(+b.display_order||999999)
-                || numericId(a.id,"MR-P")-numericId(b.id,"MR-P");
-            })
-            .map(x=>({...x,_catalogType:"piece"}));
-          const independentDesigns=data.designs
-            .filter(d=>!d.piece_id && isVisibleDrawing(d))
-            .sort((a,b)=>(+a.reference_order||999999)-(+b.reference_order||999999)
-              || numericId(a.id,"MR-D")-numericId(b.id,"MR-D"))
-            .map(x=>({...x,_catalogType:"independent_design"}));
-          return [...pieces,...independentDesigns];
-        })()
+      ? [
+          ...orderedPieces().map(x=>({...x,_catalogType:"piece"})),
+          ...data.designs.filter(d=>!d.piece_id && isVisibleDrawing(d)).map(x=>({...x,_catalogType:"independent_design"}))
+        ].sort((a,b)=>(+a.reference_order||999999)-(+b.reference_order||999999) || String(a.id).localeCompare(String(b.id)))
       : data.designs.filter(isVisibleDrawing).sort((a,b)=>numericId(a.id,"MR-D")-numericId(b.id,"MR-D")).map(x=>({...x,_catalogType:"design"}));
     const filtered=items.filter(item=>{
       let hay="";
