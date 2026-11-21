@@ -157,6 +157,28 @@
     const [kind,id]=String(key).split(":");
     const rec=kind==="piece"?data.pieces.find(p=>p.id===id):data.designs.find(d=>d.id===id);
     if(!rec?.uid)return false;
+
+    // Antes de registrar el archivo, garantizar que el registro padre exista
+    // en Supabase. Esto evita errores de FK cuando se pega/sube una imagen
+    // inmediatamente después de crear una pieza, campo o dibujo nuevo.
+    if(kind==="piece"){
+      const pr=await supabaseClient.from("pieces").upsert([centralPieceRowLive(rec)],{onConflict:"uid"});
+      if(pr.error)throw pr.error;
+    }else{
+      const field=data.fields.find(f=>f.id===rec.field_id || (rec.field_uid&&f.uid===rec.field_uid));
+      const piece=data.pieces.find(p=>p.id===rec.piece_id || (rec.piece_uid&&p.uid===rec.piece_uid));
+      if(piece){
+        const pr=await supabaseClient.from("pieces").upsert([centralPieceRowLive(piece)],{onConflict:"uid"});
+        if(pr.error)throw pr.error;
+      }
+      if(field){
+        const fr=await supabaseClient.from("fields").upsert([centralFieldRowLive(field)],{onConflict:"uid"});
+        if(fr.error)throw fr.error;
+      }
+      const dr=await supabaseClient.from("drawings").upsert([centralDrawingRowLive(rec)],{onConflict:"uid"});
+      if(dr.error)throw dr.error;
+    }
+
     const folder=kind==="piece"?"pieces":"drawings";
     const safe=(file.name||"archivo").replace(/[^a-zA-Z0-9._-]/g,"_");
     const path="live/"+folder+"/"+rec.uid+"/"+safe;
