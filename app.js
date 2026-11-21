@@ -2274,6 +2274,14 @@
   supabaseClient?.auth.onAuthStateChange(()=>setTimeout(refreshAuthUI,0));
 
   async function initApp(){
+    // Limpieza puntual solicitada por el usuario: eliminar únicamente el
+    // borrador local accidental MR-D0096. No toca ningún registro central.
+    const accidentalDraft=data.designs.find(d=>d.id==="MR-D0096" && d._draft);
+    if(accidentalDraft){
+      try{ await deleteLocalFile("design:MR-D0096"); }catch(e){}
+      data.designs=data.designs.filter(d=>d!==accidentalDraft);
+      localStorage.setItem(STORE_KEY,JSON.stringify(data));
+    }
     const loaded=await loadCentralData();
     if(loaded){
       setEditingEnabled(false);
