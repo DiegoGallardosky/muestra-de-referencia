@@ -284,13 +284,38 @@
           if(d)f.design_id=d.id;
         }
       });
-      const localDrafts=(data?.designs||[]).filter(d=>d?._draft);
+      const localBeforeCentral=deepClone(data||{pieces:[],fields:[],designs:[]});
       const previousSelectedDesignId=selectedDesignId;
       data=migrateData(central);
-      for(const draft of localDrafts){
-        if(data.designs.some(d=>d.uid===draft.uid || d.id===draft.id)) continue;
-        data.designs.push(draft);
-      }
+
+      // Recuperación no destructiva de cambios locales que todavía no llegaron
+      // a Supabase. Si un registro local no existe en la base central, se conserva.
+      // Si existe en ambos lados, se mantiene la versión con updated_at más reciente.
+      const newerLocal=(localRow,centralRow)=>{
+        if(!centralRow)return true;
+        const lt=Date.parse(localRow?.updated_at||"")||0;
+        const ct=Date.parse(centralRow?.updated_at||"")||0;
+        return lt>ct;
+      };
+      const mergeUnsynced=(target,localRows)=>{
+        const byUid=new Map(target.filter(x=>x?.uid).map(x=>[x.uid,x]));
+        for(const localRow of (localRows||[])){
+          if(localRow?._draft){
+            if(!target.some(x=>(localRow.uid&&x.uid===localRow.uid)||x.id===localRow.id)) target.push(localRow);
+            continue;
+          }
+          const centralRow=localRow?.uid?byUid.get(localRow.uid):target.find(x=>x.id===localRow.id);
+          if(!centralRow){
+            target.push(localRow);
+          }else if(newerLocal(localRow,centralRow)){
+            Object.assign(centralRow,localRow);
+          }
+        }
+      };
+      mergeUnsynced(data.pieces,localBeforeCentral.pieces);
+      mergeUnsynced(data.fields,localBeforeCentral.fields);
+      mergeUnsynced(data.designs,localBeforeCentral.designs);
+
       centralMode=true;
       selectedPieceId=data.pieces[0]?.id||"";
       selectedDesignId=data.designs.some(d=>d.id===previousSelectedDesignId)?previousSelectedDesignId:(data.designs[0]?.id||"");
