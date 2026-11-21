@@ -298,17 +298,14 @@
         return lt>ct;
       };
       const mergeUnsynced=(target,localRows)=>{
-        const byUid=new Map(target.filter(x=>x?.uid).map(x=>[x.uid,x]));
+        // La base central verificada es la fuente canónica.
+        // Se conservan únicamente borradores locales explícitos que todavía
+        // no existen en Supabase. Los registros locales normales NO pueden
+        // sobreescribir ni reinsertar piezas/campos/dibujos restaurados.
         for(const localRow of (localRows||[])){
-          if(localRow?._draft){
-            if(!target.some(x=>(localRow.uid&&x.uid===localRow.uid)||x.id===localRow.id)) target.push(localRow);
-            continue;
-          }
-          const centralRow=localRow?.uid?byUid.get(localRow.uid):target.find(x=>x.id===localRow.id);
-          if(!centralRow){
+          if(!localRow?._draft) continue;
+          if(!target.some(x=>(localRow.uid&&x.uid===localRow.uid)||x.id===localRow.id)){
             target.push(localRow);
-          }else if(newerLocal(localRow,centralRow)){
-            Object.assign(centralRow,localRow);
           }
         }
       };
